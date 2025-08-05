@@ -39,9 +39,10 @@ runs:
       uses: actions/cache@v4
       with:
         path: ${{ runner.temp }}/_working/_cache
-        key: cache-scrapes-key-${{ github.run_id }}
+        key: cache-scrapes-${{ inputs.state }}-${{ github.sha }}
         restore-keys: |
-          cache-scrapes-key-
+          cache-scrapes-${{ inputs.state }}-
+          cache-scrapes-
 
     - name: Download Latest Sanitized Data Release
       if: inputs.use-latest-release == 'true'
@@ -91,23 +92,49 @@ runs:
         docker build -t openstates/scrapers:dev .
         echo "✅ Docker image built successfully"
 
-    - name: Scrape Data
+    - name: Check Cache and Scrape Data
       if: inputs.use-latest-release != 'true'
       shell: bash
       working-directory: ${{ github.workspace }}
       run: |
-        echo "🕷️ Starting data scraping for ${{ inputs.state }}..."
+        echo "🕷️ Checking cache for today's data for ${{ inputs.state }}..."
         # Ensure directories exist
         mkdir -p ${RUNNER_TEMP}/_working/_data
         mkdir -p ${RUNNER_TEMP}/_working/_cache
         
-        echo "🐳 Running scraper in Docker container..."
-        docker run \
-            -v "${RUNNER_TEMP}/_working/_data":/opt/openstates/openstates/_data \
-            -v "${RUNNER_TEMP}/_working/_cache":/opt/openstates/openstates/_cache \
-            openstates/scrapers:dev \
-            $STATE bills --scrape --fastmode
-        echo "✅ Data scraping completed"
+        # Check if we have today's data in cache
+        TODAY=$(date +%Y-%m-%d)
+        CACHE_DIR="${RUNNER_TEMP}/_working/_cache"
+        DATA_DIR="${RUNNER_TEMP}/_working/_data/${{ inputs.state }}"
+        
+        # Check if cache exists and has today's data
+        if [ -d "$CACHE_DIR" ] && [ -n "$(find "$CACHE_DIR" -type f -mtime -1 2>/dev/null)" ]; then
+          echo "✅ Found recent cache data (within last 24 hours)"
+          
+          # Check if we have scraped data for today
+          if [ -d "$DATA_DIR" ] && [ -n "$(find "$DATA_DIR" -name "*.json" -mtime -1 2>/dev/null)" ]; then
+            echo "✅ Found today's scraped data, skipping scraping"
+            echo "📊 Using cached data from: $(find "$DATA_DIR" -name "*.json" -mtime -1 | head -1)"
+          else
+            echo "🔄 Cache exists but no today's data found, running scraper..."
+            echo "🐳 Running scraper in Docker container..."
+            docker run \
+                -v "${RUNNER_TEMP}/_working/_data":/opt/openstates/openstates/_data \
+                -v "${RUNNER_TEMP}/_working/_cache":/opt/openstates/openstates/_cache \
+                openstates/scrapers:dev \
+                $STATE bills --scrape --fastmode
+            echo "✅ Data scraping completed"
+          fi
+        else
+          echo "🔄 No recent cache found, running fresh scraper..."
+          echo "🐳 Running scraper in Docker container..."
+          docker run \
+              -v "${RUNNER_TEMP}/_working/_data":/opt/openstates/openstates/_data \
+              -v "${RUNNER_TEMP}/_working/_cache":/opt/openstates/openstates/_cache \
+              openstates/scrapers:dev \
+              $STATE bills --scrape --fastmode
+          echo "✅ Data scraping completed"
+        fi
 
     - name: Zip and Upload Scraped Data as Artifact
       if: inputs.use-latest-release != 'true'
