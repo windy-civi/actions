@@ -93,20 +93,54 @@ runs:
             openstates/scrapers:dev \
             $STATE bills --scrape --fastmode
 
+    - name: Zip and Upload Scraped Data as Artifact
+      if: inputs.use-latest-release != 'true'
+      shell: bash
+      run: |
+        # Create a zip file of the scraped data
+        cd ${RUNNER_TEMP}/_working/_data
+        zip -r scraped-data-${{ inputs.state }}.zip .
+        
+        # Move the zip to a location we can upload
+        mv scraped-data-${{ inputs.state }}.zip ${RUNNER_TEMP}/
+
     - name: Upload Scraped Data as Artifact
       if: inputs.use-latest-release != 'true'
       uses: actions/upload-artifact@v4
       with:
         name: scraped-data-${{ inputs.state }}
-        path: ${{ runner.temp }}/_working/_data
+        path: ${{ runner.temp }}/scraped-data-${{ inputs.state }}.zip
         retention-days: 1
+
+    - name: Upload Scraped Data as Release
+      if: inputs.use-latest-release != 'true'
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        # Create a release with the scraped data zip file
+        gh release create "scraped-data-${{ inputs.state }}" \
+          --title "Scraped OCD Data for ${{ inputs.state }}" \
+          --notes "Raw scraped OCD data for ${{ inputs.state }} state from OpenStates scrapers." \
+          ${RUNNER_TEMP}/scraped-data-${{ inputs.state }}.zip
 
     - name: Download Scraped Data
       if: inputs.use-latest-release != 'true'
       uses: actions/download-artifact@v4
       with:
         name: scraped-data-${{ inputs.state }}
-        path: ${{ runner.temp }}/_working/_data
+        path: ${{ runner.temp }}
+
+    - name: Extract Scraped Data
+      if: inputs.use-latest-release != 'true'
+      shell: bash
+      run: |
+        # Create the data directory
+        mkdir -p ${RUNNER_TEMP}/_working/_data
+        
+        # Extract the zip file
+        cd ${RUNNER_TEMP}
+        unzip scraped-data-${{ inputs.state }}.zip -d ${RUNNER_TEMP}/_working/_data/
 
     - name: Sanitize Data (removes _id and scraped_at)
       if: inputs.use-latest-release != 'true'
