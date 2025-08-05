@@ -1,0 +1,40 @@
+name: "Format Scraped Data"
+description: "Format and process scraped OpenStates data"
+
+inputs:
+  state:
+    description: "State abbreviation (e.g., id, il, tx, ny)"
+    required: true
+  input-folder:
+    description: "Path to the input folder containing JSON files"
+    required: true
+  allow-session-fix:
+    description: "Allow interactive session fixes when session names are missing"
+    required: false
+    default: "true"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+        cache: "pipenv"
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        pip install pipenv
+        pipenv install
+
+    - name: Format scraped data
+      shell: bash
+      working-directory: ./openstates_scraped_data_formatter
+      env:
+        FORMATTER_INPUT_FOLDER: ${{ inputs.input-folder }}
+      run: |
+        pipenv run python main.py \
+          --state ${{ inputs.state }} \
+          --input-folder ${{ inputs.input-folder }} \
+          --allow-session-fix ${{ inputs.allow-session-fix }}
