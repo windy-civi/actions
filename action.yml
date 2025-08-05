@@ -29,9 +29,11 @@ runs:
       shell: bash
       working-directory: ${{ github.workspace }}
       run: |
+        echo "🔧 Setting up working directories..."
         # Create working directories
         mkdir -p ${RUNNER_TEMP}/_working/_data
         mkdir -p ${RUNNER_TEMP}/_working/_cache
+        echo "✅ Working directories created successfully"
 
     - name: Cache Scrapes
       uses: actions/cache@v4
@@ -48,29 +50,33 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
+        echo "📥 Downloading latest sanitized data release for ${{ inputs.state }}..."
         # Ensure directories exist
         mkdir -p ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
         
         # Get the latest release for this state
+        echo "🔍 Searching for latest release..."
         LATEST_RELEASE=$(gh release list --repo openstates/openstates-scrapers --limit 1 --search "sanitized-data-${{ inputs.state }}" --json tagName --jq '.[0].tagName')
         
         if [ "$LATEST_RELEASE" = "null" ] || [ -z "$LATEST_RELEASE" ]; then
-          echo "No sanitized data release found for ${{ inputs.state }}. Falling back to scraping."
+          echo "❌ No sanitized data release found for ${{ inputs.state }}. Falling back to scraping."
           echo "use-latest-release=false" >> $GITHUB_OUTPUT
         else
-          echo "Found latest release: $LATEST_RELEASE"
+          echo "✅ Found latest release: $LATEST_RELEASE"
           
           # Download the release assets
+          echo "📦 Downloading release assets..."
           gh release download $LATEST_RELEASE --repo openstates/openstates-scrapers --dir ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
           
           # Extract the zip file if it exists
           if [ -f "${RUNNER_TEMP}/_working/_data/${{ inputs.state }}/sanitized-data-${{ inputs.state }}.zip" ]; then
+            echo "📂 Extracting zip file..."
             cd ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
             unzip sanitized-data-${{ inputs.state }}.zip
             rm sanitized-data-${{ inputs.state }}.zip
           fi
           
-          echo "Successfully downloaded sanitized data from release $LATEST_RELEASE"
+          echo "✅ Successfully downloaded sanitized data from release $LATEST_RELEASE"
         fi
 
     - name: Clone and Build Scrapers from Source
@@ -78,36 +84,44 @@ runs:
       shell: bash
       working-directory: ${{ github.workspace }}
       run: |
+        echo "🔧 Cloning OpenStates scrapers repository..."
         git clone https://github.com/openstates/openstates-scrapers.git
+        echo "📦 Building Docker image for scrapers..."
         cd openstates-scrapers
         docker build -t openstates/scrapers:dev .
+        echo "✅ Docker image built successfully"
 
     - name: Scrape Data
       if: inputs.use-latest-release != 'true'
       shell: bash
       working-directory: ${{ github.workspace }}
       run: |
+        echo "🕷️ Starting data scraping for ${{ inputs.state }}..."
         # Ensure directories exist
         mkdir -p ${RUNNER_TEMP}/_working/_data
         mkdir -p ${RUNNER_TEMP}/_working/_cache
         
+        echo "🐳 Running scraper in Docker container..."
         docker run \
             -v "${RUNNER_TEMP}/_working/_data":/opt/openstates/openstates/_data \
             -v "${RUNNER_TEMP}/_working/_cache":/opt/openstates/openstates/_cache \
             openstates/scrapers:dev \
             $STATE bills --scrape --fastmode
+        echo "✅ Data scraping completed"
 
     - name: Zip and Upload Scraped Data as Artifact
       if: inputs.use-latest-release != 'true'
       shell: bash
       working-directory: ${{ github.workspace }}
       run: |
+        echo "📦 Creating zip file of scraped data..."
         # Create a zip file of the scraped data
         cd ${RUNNER_TEMP}/_working/_data
         zip -r scraped-data-${{ inputs.state }}.zip .
         
         # Move the zip to a location we can upload
         mv scraped-data-${{ inputs.state }}.zip ${RUNNER_TEMP}/
+        echo "✅ Zip file created and moved to upload location"
 
     - name: Upload Scraped Data as Artifact
       if: inputs.use-latest-release != 'true'
@@ -124,11 +138,17 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
+        echo "🚀 Creating release for scraped data..."
+        # Configure git for gh CLI
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        
         # Create a release with the scraped data zip file
         gh release create "scraped-data-${{ inputs.state }}" \
           --title "Scraped OCD Data for ${{ inputs.state }}" \
           --notes "Raw scraped OCD data for ${{ inputs.state }} state from OpenStates scrapers." \
           ${RUNNER_TEMP}/scraped-data-${{ inputs.state }}.zip
+        echo "✅ Release created successfully"
 
     - name: Download Scraped Data
       if: inputs.use-latest-release != 'true'
@@ -142,24 +162,28 @@ runs:
       shell: bash
       working-directory: ${{ github.workspace }}
       run: |
+        echo "📂 Extracting scraped data..."
         # Create the data directory
         mkdir -p ${RUNNER_TEMP}/_working/_data
         
         # Extract the zip file
         cd ${RUNNER_TEMP}
         unzip scraped-data-${{ inputs.state }}.zip -d ${RUNNER_TEMP}/_working/_data/
+        echo "✅ Scraped data extracted successfully"
 
     - name: Sanitize Data (removes _id and scraped_at)
       if: inputs.use-latest-release != 'true'
       shell: bash
       working-directory: ${{ github.workspace }}
       run: |
+        echo "🧹 Sanitizing JSON data (removing _id and scraped_at fields)..."
         # Sanitize JSON files with proper error handling
         find ${RUNNER_TEMP}/_working/_data -type f -name "*.json" -exec bash -c '
           if [ -f "{}" ]; then
             jq "del(..|._id?, .scraped_at?)" "{}" > "{}.tmp" && mv "{}.tmp" "{}"
           fi
         ' \;
+        echo "✅ Data sanitization completed"
 
     - name: Upload Sanitized Data as Release
       if: inputs.use-latest-release != 'true'
@@ -168,28 +192,38 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
+        echo "🚀 Creating release for sanitized data..."
+        # Configure git for gh CLI
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        
         # Create a zip file with all sanitized JSON files
         cd ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
         
         # Check if JSON files exist before creating zip
         if [ -n "$(ls -A *.json 2>/dev/null)" ]; then
+          echo "📦 Creating zip file of sanitized data..."
           zip -r sanitized-data-${{ inputs.state }}.zip *.json
           
           # Create a release with the zip file
+          echo "📤 Uploading sanitized data release..."
           gh release create "sanitized-data-${{ inputs.state }}-$(date +%Y%m%d-%H%M%S)" \
             --title "Sanitized OCD Data for ${{ inputs.state }}" \
             --notes "Sanitized OCD data for ${{ inputs.state }} state. Removed _id and scraped_at fields." \
             sanitized-data-${{ inputs.state }}.zip
+          echo "✅ Sanitized data release created successfully"
         else
-          echo "No JSON files found to zip for state ${{ inputs.state }}"
+          echo "❌ No JSON files found to zip for state ${{ inputs.state }}"
         fi
 
     - name: Install dependencies
       shell: bash
       working-directory: ${{ github.workspace }}
       run: |
+        echo "📦 Installing Python dependencies..."
         pip install pipenv
         pipenv install --deploy
+        echo "✅ Dependencies installed successfully"
 
     - name: Format scraped data
       shell: bash
@@ -197,10 +231,12 @@ runs:
       env:
         FORMATTER_INPUT_FOLDER: ${{ runner.temp }}/_working/_data/${{ inputs.state }}
       run: |
+        echo "🔧 Formatting scraped data for ${{ inputs.state }}..."
         pipenv run python main.py \
           --state ${{ inputs.state }} \
           --input-folder ${{ runner.temp }}/_working/_data/${{ inputs.state }} \
           --allow-session-fix ${{ inputs.allow-session-fix }}
+        echo "✅ Data formatting completed"
 
     - name: Upload Processed Data as Artifact
       uses: actions/upload-artifact@v4
