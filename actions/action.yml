@@ -28,9 +28,13 @@ runs:
         pip install pipenv
         pipenv install
 
-    - name: Format Data
-      uses: windy-civi/opencivicdata-blockchain-transformer@main
-      with:
-        state: "wy"
-        input-folder: ${{ runner.temp }}/_working/_data/${{ env.STATE }}
-        allow-session-fix: true
+    - name: Format scraped data
+      shell: bash
+      working-directory: ./openstates_scraped_data_formatter
+      env:
+        FORMATTER_INPUT_FOLDER: ${{ inputs.input-folder }}
+      run: |
+        pipenv run python main.py \
+          --state ${{ inputs.state }} \
+          --input-folder ${{ inputs.input-folder }} \
+          --allow-session-fix ${{ inputs.allow-session-fix }}
