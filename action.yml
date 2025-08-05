@@ -71,12 +71,22 @@ runs:
             $STATE bills --scrape --fastmode
         echo "✅ Data scraping completed"
 
+    - name: Zip OCD Scraped Data
+      if: inputs.use-scrape-cache != 'true'
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: |
+        echo "📦 Zipping OCD scraped data..."
+        cd ${RUNNER_TEMP}/_working/_data
+        zip -r ocd-scraped-data-${{ inputs.state }}.zip "${{ inputs.state }}"/
+        echo "✅ Scraped data zipped successfully"
+
     - name: Upload OCD Scraped Data as Artifact
       if: inputs.use-scrape-cache != 'true'
       uses: actions/upload-artifact@v4
       with:
         name: ocd-scraped-data-${{ inputs.state }}
-        path: ${{ runner.temp }}/_working/_data/${{ inputs.state }}/
+        path: ${{ runner.temp }}/_working/_data/ocd-scraped-data-${{ inputs.state }}.zip
         retention-days: 30
 
     - name: Download OCD Scraped Data for Processing
@@ -129,9 +139,17 @@ runs:
         echo "⏭️ Skipping scraping - using latest artifact data"
         echo "✅ Using pre-processed data from latest artifact"
 
+    - name: Zip OCD Blockchain Data
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: |
+        echo "📦 Zipping OCD blockchain data..."
+        zip -r data_output.zip data_output/
+        echo "✅ Blockchain data zipped successfully"
+
     - name: Upload OCD Blockchain Data as Artifact
       uses: actions/upload-artifact@v4
       with:
         name: ocd-blockchain-data-${{ inputs.state }}
-        path: data_output/
+        path: data_output.zip
         retention-days: 30
