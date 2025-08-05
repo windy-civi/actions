@@ -12,6 +12,10 @@ inputs:
   github-token:
     description: 'GitHub token for creating releases'
     required: true
+  use-latest-release:
+    description: 'Skip scraping and download from latest sanitized data release instead'
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -29,7 +33,38 @@ runs:
         restore-keys: |
           cache-scrapes-key-
 
+    - name: Download Latest Sanitized Data Release
+      if: inputs.use-latest-release == 'true'
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        mkdir -p ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
+        
+        # Get the latest release for this state
+        LATEST_RELEASE=$(gh release list --repo openstates/openstates-scrapers --limit 1 --search "sanitized-data-${{ inputs.state }}" --json tagName --jq '.[0].tagName')
+        
+        if [ "$LATEST_RELEASE" = "null" ] || [ -z "$LATEST_RELEASE" ]; then
+          echo "No sanitized data release found for ${{ inputs.state }}. Falling back to scraping."
+          echo "use-latest-release=false" >> $GITHUB_OUTPUT
+        else
+          echo "Found latest release: $LATEST_RELEASE"
+          
+          # Download the release assets
+          gh release download $LATEST_RELEASE --repo openstates/openstates-scrapers --dir ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
+          
+          # Extract the zip file if it exists
+          if [ -f "${RUNNER_TEMP}/_working/_data/${{ inputs.state }}/sanitized-data-${{ inputs.state }}.zip" ]; then
+            cd ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
+            unzip sanitized-data-${{ inputs.state }}.zip
+            rm sanitized-data-${{ inputs.state }}.zip
+          fi
+          
+          echo "Successfully downloaded sanitized data from release $LATEST_RELEASE"
+        fi
+
     - name: Clone and Build Scrapers from Source
+      if: inputs.use-latest-release != 'true'
       shell: bash
       run: |
         git clone https://github.com/openstates/openstates-scrapers.git
@@ -37,6 +72,7 @@ runs:
         docker build -t openstates/scrapers:dev .
 
     - name: Scrape Data
+      if: inputs.use-latest-release != 'true'
       shell: bash
       run: |
         mkdir -p ${RUNNER_TEMP}/_working
@@ -47,11 +83,13 @@ runs:
             $STATE bills --scrape --fastmode
 
     - name: Sanitize Data (removes _id and scraped_at)
+      if: inputs.use-latest-release != 'true'
       shell: bash
       run: |
         find ${RUNNER_TEMP}/_working/_data -type f -name "*.json" -exec bash -c 'jq "del(..|._id?, .scraped_at?)" "{}" > "{}.tmp" && mv "{}.tmp" "{}"' \;
 
     - name: Upload Sanitized Data as Release
+      if: inputs.use-latest-release != 'true'
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
