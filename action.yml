@@ -28,12 +28,14 @@ runs:
           cache-scrapes-key-
 
     - name: Clone and Build Scrapers from Source
+      shell: bash
       run: |
         git clone https://github.com/openstates/openstates-scrapers.git
         cd openstates-scrapers
         docker build -t openstates/scrapers:dev .
 
     - name: Scrape Data
+      shell: bash
       run: |
         mkdir -p ${RUNNER_TEMP}/_working
         docker run \
