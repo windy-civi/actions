@@ -28,11 +28,9 @@ runs:
     - name: Setup Working Directory
       shell: bash
       run: |
-        # Create and set proper permissions for working directories
+        # Create working directories
         mkdir -p ${RUNNER_TEMP}/_working/_data
         mkdir -p ${RUNNER_TEMP}/_working/_cache
-        chmod -R 755 ${RUNNER_TEMP}/_working/_data
-        chmod -R 755 ${RUNNER_TEMP}/_working/_cache
 
     - name: Cache Scrapes
       uses: actions/cache@v4
@@ -48,9 +46,8 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
-        # Ensure proper permissions and create directories
+        # Ensure directories exist
         mkdir -p ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
-        chmod -R 755 ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
         
         # Get the latest release for this state
         LATEST_RELEASE=$(gh release list --repo openstates/openstates-scrapers --limit 1 --search "sanitized-data-${{ inputs.state }}" --json tagName --jq '.[0].tagName')
@@ -86,11 +83,9 @@ runs:
       if: inputs.use-latest-release != 'true'
       shell: bash
       run: |
-        # Ensure proper permissions and create directories
+        # Ensure directories exist
         mkdir -p ${RUNNER_TEMP}/_working/_data
         mkdir -p ${RUNNER_TEMP}/_working/_cache
-        chmod -R 755 ${RUNNER_TEMP}/_working/_data
-        chmod -R 755 ${RUNNER_TEMP}/_working/_cache
         
         docker run \
             -v "${RUNNER_TEMP}/_working/_data":/opt/openstates/openstates/_data \
@@ -102,9 +97,8 @@ runs:
       if: inputs.use-latest-release != 'true'
       shell: bash
       run: |
-        # Ensure proper permissions and create directories if needed
+        # Ensure directories exist with proper permissions
         mkdir -p ${RUNNER_TEMP}/_working/_data
-        chmod -R 755 ${RUNNER_TEMP}/_working/_data
         
         # Sanitize JSON files with proper error handling
         find ${RUNNER_TEMP}/_working/_data -type f -name "*.json" -exec bash -c '
@@ -119,9 +113,8 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
-        # Ensure proper permissions and create directories
+        # Ensure directories exist
         mkdir -p ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
-        chmod -R 755 ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
         
         # Create a zip file with all sanitized JSON files
         cd ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
