@@ -9,6 +9,9 @@ inputs:
     description: 'Allow interactive session fixes when session names are missing'
     required: false
     default: 'false'
+  github-token:
+    description: 'GitHub token for creating releases'
+    required: true
 
 runs:
   using: 'composite'
@@ -48,10 +51,25 @@ runs:
       run: |
         find ${RUNNER_TEMP}/_working/_data -type f -name "*.json" -exec bash -c 'jq "del(..|._id?, .scraped_at?)" "{}" > "{}.tmp" && mv "{}.tmp" "{}"' \;
 
+    - name: Upload Sanitized Data as Release
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        # Create a zip file with all sanitized JSON files
+        cd ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
+        zip -r sanitized-data-${{ inputs.state }}.zip *.json
+        
+        # Create a release with the zip file
+        gh release create "sanitized-data-${{ inputs.state }}-$(date +%Y%m%d-%H%M%S)" \
+          --title "Sanitized OCD Data for ${{ inputs.state }}" \
+          --notes "Sanitized OCD data for ${{ inputs.state }} state. Removed _id and scraped_at fields." \
+          sanitized-data-${{ inputs.state }}.zip
+
     - name: Install dependencies
       shell: bash
+      working-directory: ${{ github.workspace }}
       run: |
-        cd ${{ github.workspace }}
         pip install pipenv
         pipenv install --deploy
 
