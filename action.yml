@@ -25,6 +25,15 @@ runs:
       with:
         python-version: "3.13"
 
+    - name: Setup Working Directory
+      shell: bash
+      run: |
+        # Create and set proper permissions for working directories
+        mkdir -p ${RUNNER_TEMP}/_working/_data
+        mkdir -p ${RUNNER_TEMP}/_working/_cache
+        chmod -R 755 ${RUNNER_TEMP}/_working/_data
+        chmod -R 755 ${RUNNER_TEMP}/_working/_cache
+
     - name: Cache Scrapes
       uses: actions/cache@v4
       with:
@@ -39,7 +48,9 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
+        # Ensure proper permissions and create directories
         mkdir -p ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
+        chmod -R 755 ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
         
         # Get the latest release for this state
         LATEST_RELEASE=$(gh release list --repo openstates/openstates-scrapers --limit 1 --search "sanitized-data-${{ inputs.state }}" --json tagName --jq '.[0].tagName')
@@ -75,7 +86,12 @@ runs:
       if: inputs.use-latest-release != 'true'
       shell: bash
       run: |
-        mkdir -p ${RUNNER_TEMP}/_working
+        # Ensure proper permissions and create directories
+        mkdir -p ${RUNNER_TEMP}/_working/_data
+        mkdir -p ${RUNNER_TEMP}/_working/_cache
+        chmod -R 755 ${RUNNER_TEMP}/_working/_data
+        chmod -R 755 ${RUNNER_TEMP}/_working/_cache
+        
         docker run \
             -v "${RUNNER_TEMP}/_working/_data":/opt/openstates/openstates/_data \
             -v "${RUNNER_TEMP}/_working/_cache":/opt/openstates/openstates/_cache \
@@ -86,7 +102,16 @@ runs:
       if: inputs.use-latest-release != 'true'
       shell: bash
       run: |
-        find ${RUNNER_TEMP}/_working/_data -type f -name "*.json" -exec bash -c 'jq "del(..|._id?, .scraped_at?)" "{}" > "{}.tmp" && mv "{}.tmp" "{}"' \;
+        # Ensure proper permissions and create directories if needed
+        mkdir -p ${RUNNER_TEMP}/_working/_data
+        chmod -R 755 ${RUNNER_TEMP}/_working/_data
+        
+        # Sanitize JSON files with proper error handling
+        find ${RUNNER_TEMP}/_working/_data -type f -name "*.json" -exec bash -c '
+          if [ -f "{}" ]; then
+            jq "del(..|._id?, .scraped_at?)" "{}" > "{}.tmp" && mv "{}.tmp" "{}"
+          fi
+        ' \;
 
     - name: Upload Sanitized Data as Release
       if: inputs.use-latest-release != 'true'
@@ -94,15 +119,25 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
+        # Ensure proper permissions and create directories
+        mkdir -p ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
+        chmod -R 755 ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
+        
         # Create a zip file with all sanitized JSON files
         cd ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
-        zip -r sanitized-data-${{ inputs.state }}.zip *.json
         
-        # Create a release with the zip file
-        gh release create "sanitized-data-${{ inputs.state }}-$(date +%Y%m%d-%H%M%S)" \
-          --title "Sanitized OCD Data for ${{ inputs.state }}" \
-          --notes "Sanitized OCD data for ${{ inputs.state }} state. Removed _id and scraped_at fields." \
-          sanitized-data-${{ inputs.state }}.zip
+        # Check if JSON files exist before creating zip
+        if [ -n "$(ls -A *.json 2>/dev/null)" ]; then
+          zip -r sanitized-data-${{ inputs.state }}.zip *.json
+          
+          # Create a release with the zip file
+          gh release create "sanitized-data-${{ inputs.state }}-$(date +%Y%m%d-%H%M%S)" \
+            --title "Sanitized OCD Data for ${{ inputs.state }}" \
+            --notes "Sanitized OCD data for ${{ inputs.state }} state. Removed _id and scraped_at fields." \
+            sanitized-data-${{ inputs.state }}.zip
+        else
+          echo "No JSON files found to zip for state ${{ inputs.state }}"
+        fi
 
     - name: Install dependencies
       shell: bash
