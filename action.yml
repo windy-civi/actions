@@ -51,6 +51,7 @@ runs:
     - name: Install dependencies
       shell: bash
       run: |
+        cd ${{ github.workspace }}
         pip install pipenv
         pipenv install --deploy
 
