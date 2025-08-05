@@ -93,13 +93,25 @@ runs:
             openstates/scrapers:dev \
             $STATE bills --scrape --fastmode
 
+    - name: Upload Scraped Data as Artifact
+      if: inputs.use-latest-release != 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: scraped-data-${{ inputs.state }}
+        path: ${{ runner.temp }}/_working/_data
+        retention-days: 1
+
+    - name: Download Scraped Data
+      if: inputs.use-latest-release != 'true'
+      uses: actions/download-artifact@v4
+      with:
+        name: scraped-data-${{ inputs.state }}
+        path: ${{ runner.temp }}/_working/_data
+
     - name: Sanitize Data (removes _id and scraped_at)
       if: inputs.use-latest-release != 'true'
       shell: bash
       run: |
-        # Ensure directories exist with proper permissions
-        mkdir -p ${RUNNER_TEMP}/_working/_data
-        
         # Sanitize JSON files with proper error handling
         find ${RUNNER_TEMP}/_working/_data -type f -name "*.json" -exec bash -c '
           if [ -f "{}" ]; then
@@ -113,9 +125,6 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
-        # Ensure directories exist
-        mkdir -p ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
-        
         # Create a zip file with all sanitized JSON files
         cd ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
         
