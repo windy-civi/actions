@@ -1,26 +1,51 @@
-name: "Format Scraped Data"
-description: "Format and process scraped OpenStates data"
+name: 'OpenStates Data Pipeline'
+description: 'Complete pipeline to scrape, sanitize, and format OpenStates data'
 
 inputs:
   state:
-    description: "State abbreviation (e.g., id, il, tx, ny)"
-    required: true
-  input-folder:
-    description: "Path to the input folder containing JSON files"
+    description: 'State abbreviation (e.g., id, il, tx, ny)'
     required: true
   allow-session-fix:
-    description: "Allow interactive session fixes when session names are missing"
+    description: 'Allow interactive session fixes when session names are missing'
     required: false
-    default: "true"
+    default: 'false'
 
 runs:
-  using: "composite"
+  using: 'composite'
   steps:
     - name: Setup Python
       uses: actions/setup-python@v5
       with:
         python-version: "3.13"
         cache: "pipenv"
+
+    - name: Cache Scrapes
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/_working/_cache
+        key: cache-scrapes-key-${{ steps.get-date.outputs.date }}
+        restore-keys: |
+          cache-scrapes-key-
+
+    - name: Clone and Build Scrapers from Source
+      run: |
+        git clone https://github.com/openstates/openstates-scrapers.git
+        cd openstates-scrapers
+        docker build -t openstates/scrapers:dev .
+
+    - name: Scrape Data
+      run: |
+        mkdir -p ${RUNNER_TEMP}/_working
+        docker run \
+            -v "${RUNNER_TEMP}/_working/_data":/opt/openstates/openstates/_data \
+            -v "${RUNNER_TEMP}/_working/_cache":/opt/openstates/openstates/_cache \
+            openstates/scrapers:dev \
+            $STATE bills --scrape --fastmode
+
+    - name: Sanitize Data (removes _id and scraped_at)
+      shell: bash
+      run: |
+        find ${RUNNER_TEMP}/_working/_data -type f -name "*.json" -exec bash -c 'jq "del(..|._id?, .scraped_at?)" "{}" > "{}.tmp" && mv "{}.tmp" "{}"' \;
 
     - name: Install dependencies
       shell: bash
@@ -32,9 +57,15 @@ runs:
       shell: bash
       working-directory: ./openstates_scraped_data_formatter
       env:
-        FORMATTER_INPUT_FOLDER: ${{ inputs.input-folder }}
+        FORMATTER_INPUT_FOLDER: ${{ runner.temp }}/_working/_data/${{ inputs.state }}
       run: |
         pipenv run python main.py \
           --state ${{ inputs.state }} \
-          --input-folder ${{ inputs.input-folder }} \
+          --input-folder ${{ runner.temp }}/_working/_data/${{ inputs.state }} \
           --allow-session-fix ${{ inputs.allow-session-fix }}
+
+    - name: Upload Processed Data as Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: processed-data-${{ inputs.state }}
+        path: data_output/
