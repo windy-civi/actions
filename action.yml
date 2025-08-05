@@ -9,13 +9,6 @@ inputs:
     description: 'Allow interactive session fixes when session names are missing'
     required: false
     default: 'false'
-  github-token:
-    description: 'GitHub token for creating releases'
-    required: true
-  use-latest-release:
-    description: 'Skip scraping and download from latest sanitized data release instead'
-    required: false
-    default: 'false'
   use-latest-artifact:
     description: 'Skip scraping and use the most recent artifact from this repository instead'
     required: false
@@ -48,86 +41,8 @@ runs:
           cache-scrapes-${{ inputs.state }}-
           cache-scrapes-
 
-    - name: Download Latest Sanitized Data Release
-      if: inputs.use-latest-release == 'true'
-      shell: bash
-      working-directory: ${{ github.workspace }}
-      env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
-      run: |
-        echo "📥 Downloading latest sanitized data release for ${{ inputs.state }}..."
-        # Ensure directories exist
-        mkdir -p ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
-        
-        # Get the latest release for this state from this repository
-        echo "🔍 Searching for latest release..."
-        LATEST_RELEASE=$(gh release list --repo ${{ github.repository }} --limit 1 --search "sanitized-data-${{ inputs.state }}" --json tagName --jq '.[0].tagName')
-        
-        if [ "$LATEST_RELEASE" = "null" ] || [ -z "$LATEST_RELEASE" ]; then
-          echo "❌ No sanitized data release found for ${{ inputs.state }}. Falling back to scraping."
-          echo "use-latest-release=false" >> $GITHUB_OUTPUT
-        else
-          echo "✅ Found latest release: $LATEST_RELEASE"
-          
-          # Download the release assets
-          echo "📦 Downloading release assets..."
-          gh release download $LATEST_RELEASE --repo ${{ github.repository }} --dir ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
-          
-          # Extract the zip file if it exists
-          if [ -f "${RUNNER_TEMP}/_working/_data/${{ inputs.state }}/sanitized-data-${{ inputs.state }}.zip" ]; then
-            echo "📂 Extracting zip file..."
-            cd ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
-            unzip sanitized-data-${{ inputs.state }}.zip
-            rm sanitized-data-${{ inputs.state }}.zip
-          fi
-          
-          echo "✅ Successfully downloaded sanitized data from release $LATEST_RELEASE"
-        fi
-
-    - name: Download Latest Artifact
-      if: inputs.use-latest-artifact == 'true'
-      shell: bash
-      working-directory: ${{ github.workspace }}
-      env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
-      run: |
-        echo "📥 Downloading latest artifact for ${{ inputs.state }}..."
-        # Ensure directories exist
-        mkdir -p ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
-        
-        # Get the latest workflow run that created artifacts for this state
-        echo "🔍 Searching for latest workflow run with artifacts..."
-        
-        # Get the latest successful run that created processed-data artifacts
-        LATEST_RUN=$(gh run list --repo ${{ github.repository }} --limit 10 --json databaseId,conclusion,createdAt,headBranch --jq '[.[] | select(.conclusion == "success")] | .[0].databaseId')
-        
-        if [ "$LATEST_RUN" = "null" ] || [ -z "$LATEST_RUN" ]; then
-          echo "❌ No successful workflow runs found. Falling back to scraping."
-          echo "use-latest-artifact=false" >> $GITHUB_OUTPUT
-        else
-          echo "✅ Found latest successful run: $LATEST_RUN"
-          
-          # List artifacts from this run
-          ARTIFACTS=$(gh run download --repo ${{ github.repository }} $LATEST_RUN --dir ${RUNNER_TEMP}/_working/_data/${{ inputs.state }} --pattern "processed-data-${{ inputs.state }}")
-          
-          if [ $? -eq 0 ]; then
-            echo "✅ Successfully downloaded artifact from run $LATEST_RUN"
-            
-            # Extract the zip file if it exists
-            if [ -f "${RUNNER_TEMP}/_working/_data/${{ inputs.state }}/processed-data-${{ inputs.state }}.zip" ]; then
-              echo "📂 Extracting zip file..."
-              cd ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
-              unzip processed-data-${{ inputs.state }}.zip
-              rm processed-data-${{ inputs.state }}.zip
-            fi
-          else
-            echo "❌ No processed-data artifact found for ${{ inputs.state }} in run $LATEST_RUN. Falling back to scraping."
-            echo "use-latest-artifact=false" >> $GITHUB_OUTPUT
-          fi
-        fi
-
     - name: Clone and Build Scrapers from Source
-      if: inputs.use-latest-release != 'true' && inputs.use-latest-artifact != 'true'
+      if: inputs.use-latest-artifact != 'true'
       shell: bash
       working-directory: ${{ github.workspace }}
       run: |
@@ -139,7 +54,7 @@ runs:
         echo "✅ Docker image built successfully"
 
     - name: Scrape Data
-      if: inputs.use-latest-release != 'true' && inputs.use-latest-artifact != 'true'
+      if: inputs.use-latest-artifact != 'true'
       shell: bash
       working-directory: ${{ github.workspace }}
       run: |
@@ -156,70 +71,21 @@ runs:
             $STATE bills --scrape --fastmode
         echo "✅ Data scraping completed"
 
-    - name: Zip and Upload Scraped Data as Artifact
-      if: inputs.use-latest-release != 'true' && inputs.use-latest-artifact != 'true'
-      shell: bash
-      working-directory: ${{ github.workspace }}
-      run: |
-        echo "📦 Creating zip file of scraped data..."
-        # Create a zip file of the scraped data
-        cd ${RUNNER_TEMP}/_working/_data
-        zip -r scraped-data-${{ inputs.state }}.zip .
-        
-        # Move the zip to a location we can upload
-        mv scraped-data-${{ inputs.state }}.zip ${RUNNER_TEMP}/
-        echo "✅ Zip file created and moved to upload location"
-
-    - name: Upload Scraped Data as Artifact
-      if: inputs.use-latest-release != 'true' && inputs.use-latest-artifact != 'true'
+    - name: Upload OCD Scraped Data as Artifact
+      if: inputs.use-latest-artifact != 'true'
       uses: actions/upload-artifact@v4
       with:
-        name: scraped-data-${{ inputs.state }}
-        path: ${{ runner.temp }}/scraped-data-${{ inputs.state }}.zip
-        retention-days: 1
+        name: ocd-scraped-data-${{ inputs.state }}
+        path: ${{ runner.temp }}/_working/_data/${{ inputs.state }}/
+        retention-days: 30
 
-    - name: Upload Scraped Data as Release
-      if: inputs.use-latest-release != 'true' && inputs.use-latest-artifact != 'true'
-      shell: bash
-      working-directory: ${{ github.workspace }}
-      env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
-      run: |
-        echo "🚀 Creating release for scraped data..."
-        # Configure git for gh CLI
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        
-        # Create a release with the scraped data zip file
-        gh release create "scraped-data-${{ inputs.state }}" \
-          --title "Scraped OCD Data for ${{ inputs.state }}" \
-          --notes "Raw scraped OCD data for ${{ inputs.state }} state from OpenStates scrapers." \
-          ${RUNNER_TEMP}/scraped-data-${{ inputs.state }}.zip
-        echo "✅ Release created successfully"
-
-    - name: Download Scraped Data
-      if: inputs.use-latest-release != 'true' && inputs.use-latest-artifact != 'true'
+    - name: Download OCD Scraped Data for Processing
       uses: actions/download-artifact@v4
       with:
-        name: scraped-data-${{ inputs.state }}
-        path: ${{ runner.temp }}
-
-    - name: Extract Scraped Data
-      if: inputs.use-latest-release != 'true' && inputs.use-latest-artifact != 'true'
-      shell: bash
-      working-directory: ${{ github.workspace }}
-      run: |
-        echo "📂 Extracting scraped data..."
-        # Create the data directory
-        mkdir -p ${RUNNER_TEMP}/_working/_data
-        
-        # Extract the zip file
-        cd ${RUNNER_TEMP}
-        unzip scraped-data-${{ inputs.state }}.zip -d ${RUNNER_TEMP}/_working/_data/
-        echo "✅ Scraped data extracted successfully"
+        name: ocd-scraped-data-${{ inputs.state }}
+        path: ${{ runner.temp }}/_working/_data/${{ inputs.state }}/
 
     - name: Sanitize Data (removes _id and scraped_at)
-      if: inputs.use-latest-release != 'true' && inputs.use-latest-artifact != 'true'
       shell: bash
       working-directory: ${{ github.workspace }}
       run: |
@@ -231,37 +97,6 @@ runs:
           fi
         ' \;
         echo "✅ Data sanitization completed"
-
-    - name: Upload Sanitized Data as Release
-      if: inputs.use-latest-release != 'true' && inputs.use-latest-artifact != 'true'
-      shell: bash
-      working-directory: ${{ github.workspace }}
-      env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
-      run: |
-        echo "🚀 Creating release for sanitized data..."
-        # Configure git for gh CLI
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        
-        # Create a zip file with all sanitized JSON files
-        cd ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
-        
-        # Check if JSON files exist before creating zip
-        if [ -n "$(ls -A *.json 2>/dev/null)" ]; then
-          echo "📦 Creating zip file of sanitized data..."
-          zip -r sanitized-data-${{ inputs.state }}.zip *.json
-          
-          # Create a release with the zip file
-          echo "📤 Uploading sanitized data release..."
-          gh release create "sanitized-data-${{ inputs.state }}-$(date +%Y%m%d-%H%M%S)" \
-            --title "Sanitized OCD Data for ${{ inputs.state }}" \
-            --notes "Sanitized OCD data for ${{ inputs.state }} state. Removed _id and scraped_at fields." \
-            sanitized-data-${{ inputs.state }}.zip
-          echo "✅ Sanitized data release created successfully"
-        else
-          echo "❌ No JSON files found to zip for state ${{ inputs.state }}"
-        fi
 
     - name: Install dependencies
       shell: bash
@@ -286,16 +121,17 @@ runs:
           --allow-session-fix ${{ inputs.allow-session-fix }}
         echo "✅ Data formatting completed"
 
-    - name: Skip formatting (using latest artifact)
+    - name: Skip scraping (using latest artifact)
       if: inputs.use-latest-artifact == 'true'
       shell: bash
       working-directory: ${{ github.workspace }}
       run: |
-        echo "⏭️ Skipping data formatting - using latest artifact data"
+        echo "⏭️ Skipping scraping - using latest artifact data"
         echo "✅ Using pre-processed data from latest artifact"
 
-    - name: Upload Processed Data as Artifact
+    - name: Upload OCD Blockchain Data as Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: processed-data-${{ inputs.state }}
+        name: ocd-blockchain-data-${{ inputs.state }}
         path: data_output/
+        retention-days: 30
