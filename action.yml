@@ -9,7 +9,7 @@ inputs:
     description: 'Allow interactive session fixes when session names are missing'
     required: false
     default: 'false'
-  use-latest-artifact:
+  use-scrape-cache:
     description: 'Skip scraping and use the most recent artifact from this repository instead'
     required: false
     default: 'false'
@@ -42,7 +42,7 @@ runs:
           cache-scrapes-
 
     - name: Clone and Build Scrapers from Source
-      if: inputs.use-latest-artifact != 'true'
+      if: inputs.use-scrape-cache != 'true'
       shell: bash
       working-directory: ${{ github.workspace }}
       run: |
@@ -54,7 +54,7 @@ runs:
         echo "✅ Docker image built successfully"
 
     - name: Scrape Data
-      if: inputs.use-latest-artifact != 'true'
+      if: inputs.use-scrape-cache != 'true'
       shell: bash
       working-directory: ${{ github.workspace }}
       run: |
@@ -72,7 +72,7 @@ runs:
         echo "✅ Data scraping completed"
 
     - name: Upload OCD Scraped Data as Artifact
-      if: inputs.use-latest-artifact != 'true'
+      if: inputs.use-scrape-cache != 'true'
       uses: actions/upload-artifact@v4
       with:
         name: ocd-scraped-data-${{ inputs.state }}
@@ -108,7 +108,7 @@ runs:
         echo "✅ Dependencies installed successfully"
 
     - name: Format scraped data
-      if: inputs.use-latest-artifact != 'true'
+      if: inputs.use-scrape-cache != 'true'
       shell: bash
       working-directory: ./openstates_scraped_data_formatter
       env:
@@ -122,7 +122,7 @@ runs:
         echo "✅ Data formatting completed"
 
     - name: Skip scraping (using latest artifact)
-      if: inputs.use-latest-artifact == 'true'
+      if: inputs.use-scrape-cache == 'true'
       shell: bash
       working-directory: ${{ github.workspace }}
       run: |
