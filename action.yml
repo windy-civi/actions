@@ -17,13 +17,12 @@ runs:
       uses: actions/setup-python@v5
       with:
         python-version: "3.13"
-        cache: "pipenv"
 
     - name: Cache Scrapes
       uses: actions/cache@v4
       with:
         path: ${{ runner.temp }}/_working/_cache
-        key: cache-scrapes-key-${{ steps.get-date.outputs.date }}
+        key: cache-scrapes-key-${{ github.run_id }}
         restore-keys: |
           cache-scrapes-key-
 
@@ -53,7 +52,7 @@ runs:
       shell: bash
       run: |
         pip install pipenv
-        pipenv install
+        pipenv install --deploy
 
     - name: Format scraped data
       shell: bash
