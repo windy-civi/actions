@@ -108,6 +108,10 @@ runs:
             $STATE bills --scrape --fastmode
         echo "✅ Data scraping completed"
         
+        echo "🔑 Updating file permissions..."
+        chmod -R 777 ./data
+        echo "✅ File permissions updated"
+        
     - name: Zip Scraped Data
       if: inputs.use-scrape-cache != 'true'
       shell: bash
