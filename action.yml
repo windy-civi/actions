@@ -46,13 +46,13 @@ runs:
       run: |
         echo "🔧 Setting up working directory..."
         # Create working directory outside git repo
-        mkdir -p ${RUNNER_TEMP}/_working
-        echo "✅ Working directory created at ${RUNNER_TEMP}/_working"
+        mkdir -p ${RUNNER_TEMP}
+        echo "✅ Working directory created at ${RUNNER_TEMP}"
 
     - name: Cache Scrapes
       uses: actions/cache@v4
       with:
-        path: ${{ runner.temp }}/_working/cache
+        path: ${{ runner.temp }}/cache
         key: cache-scrapes-${{ inputs.state }}-${{ github.sha }}
         restore-keys: |
           cache-scrapes-${{ inputs.state }}-
@@ -71,38 +71,39 @@ runs:
 
     - name: Scrape Data
       shell: bash
-      working-directory: ${{ github.workspace }}
+      working-directory: ${{ runner.temp }}
       run: |
         echo "🕷️ Starting data scraping for ${{ inputs.state }}..."
         # Ensure directories exist
-        mkdir -p ${RUNNER_TEMP}/_working/data
-        mkdir -p ${RUNNER_TEMP}/_working/cache
+        mkdir -p ./data
+        mkdir -p ./cache
         
         echo "🐳 Running scraper in Docker container..."
         docker run \
-            -v "${RUNNER_TEMP}/_working/data":/opt/openstates/openstates/_data \
-            -v "${RUNNER_TEMP}/_working/cache":/opt/openstates/openstates/_cache \
+            -v "./data":/opt/openstates/openstates/_data \
+            -v "./cache":/opt/openstates/openstates/_cache \
             openstates/scrapers:dev \
             $STATE bills --scrape --fastmode
         echo "✅ Data scraping completed"
         
     - name: Zip Scraped Data
       shell: bash
-      working-directory: ${{ runner.temp }}/_working
+      working-directory: ${{ runner.temp }}
       run: |
         echo "📦 Zipping scraped data for ${{ inputs.state }}..."
-        zip -r ${{ inputs.state }}.zip data/${{ inputs.state }}/
+        zip -r ${{ inputs.state }}.zip ./data/${{ inputs.state }}/
         echo "✅ Data zipped successfully"
 
     - name: Upload OCD Scraped Data as Artifact
       uses: actions/upload-artifact@v4
       with:
         name: ocd-scraped-data-${{ inputs.state }}
-        path: ${{ runner.temp }}/_working/${{ inputs.state }}.zip
+        path: ${{ runner.temp }}/${{ inputs.state }}.zip
         retention-days: 30
 
     - name: Create Release and Upload Asset
       shell: bash
+      working-directory: ${{ runner.temp }}
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
@@ -119,6 +120,6 @@ runs:
         - Commit: ${{ github.sha }}
         - Branch: ${{ github.ref_name }}" \
           --repo ${{ github.repository }} \
-          "${{ runner.temp }}/_working/${{ inputs.state }}.zip#Scraped Data for ${{ inputs.state }}"
+          "${{ inputs.state }}.zip#Scraped Data for ${{ inputs.state }}"
         
         echo "✅ Release created and asset uploaded successfully"
