@@ -159,6 +159,8 @@ runs:
 
     - name: Download & Extract Nightly Scrape Data
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       working-directory: ${{ runner.temp }}/release_scraped_data
       run: |
         echo "📥 Downloading nightly scrape data..."
