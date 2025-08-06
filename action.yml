@@ -107,7 +107,7 @@ runs:
       with:
         token: ${{ inputs.github-token }}
         tag: 'nightly'
-        out-file-path: ${{ runner.temp }}/scrape-snapshot-nightly-release
+        out-file-path: ${{ runner.temp }}/downloaded_release
 
     - name: Extract Nightly Scrape Data
       shell: bash
