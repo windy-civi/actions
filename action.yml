@@ -109,10 +109,17 @@ runs:
       run: |
         echo "📦 Creating release for ${{ inputs.state }}..."
         
+        # Delete existing release if it exists, then create new one
+        echo "🗑️ Checking for existing release..."
+        if gh release view "latest" --repo ${{ github.repository }} >/dev/null 2>&1; then
+          echo "🗑️ Deleting existing release..."
+          gh release delete "latest" --repo ${{ github.repository }} --yes
+        fi
+        
         # Create release with asset in one command
+        echo "📦 Creating new release..."
         gh release create \
           "latest" \
-          --force \
           --title "Latest Scraped Data - ${{ inputs.state }}" \
           --notes "Latest scraped data artifacts for ${{ inputs.state }}
         
