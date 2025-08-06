@@ -46,8 +46,7 @@ def handle_vote_event(
     is_usa = STATE_ABBR.lower() == "usa"
 
     if is_usa:
-        save_path = Path(DATA_PROCESSED_FOLDER).joinpath(
-            "country:us",
+        save_path = Path("country:us").joinpath(
             "congress",
             "sessions",
             session_id,
@@ -55,8 +54,7 @@ def handle_vote_event(
             bill_id,
         )
     else:
-        save_path = Path(DATA_PROCESSED_FOLDER).joinpath(
-            "country:us",
+        save_path = Path("country:us").joinpath(
             f"state:{STATE_ABBR.lower()}",
             "sessions",
             session_id,
