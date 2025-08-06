@@ -153,11 +153,11 @@ def record_error_file(
 def slugify(text: str, max_length=100):
     """
     Converts a string to a safe, lowercase, underscore-separated slug.
-    Strips punctuation and truncates long filenames.
+    Strips punctuation (including dashes) and truncates long filenames.
     """
     text = text.lower()
-    text = re.sub(r"[^\w\s-]", "", text)  # remove punctuation
-    text = re.sub(r"\s+", "_", text)  # convert spaces to underscores
+    text = re.sub(r"[^\w\s]", "", text)
+    text = re.sub(r"\s+", "_", text)
     text = text.strip("_")
     return text[:max_length]
 
