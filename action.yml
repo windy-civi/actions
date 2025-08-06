@@ -90,6 +90,8 @@ runs:
       shell: bash
       working-directory: ${{ runner.temp }}
       run: |
+        echo "📂 Current directory structure:"
+        tree -L 3 ./
         echo "📦 Zipping scraped data for ${{ inputs.state }}..."
         zip -r ${{ inputs.state }}.zip ./data/${{ inputs.state }}/
         echo "✅ Data zipped successfully"
