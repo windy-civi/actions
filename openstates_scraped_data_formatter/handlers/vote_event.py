@@ -73,7 +73,6 @@ def handle_vote_event(
         placeholder_data = {"identifier": bill_id, "placeholder": True}
         with open(placeholder_file, "w", encoding="utf-8") as f:
             json.dump(placeholder_data, f, indent=2)
-        print(f"📝 Created placeholder for missing bill {bill_id}")
 
     # Save timestamped vote log
     date = data.get("start_date")
