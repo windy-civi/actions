@@ -107,13 +107,13 @@ runs:
       with:
         mode: download
         tag_name: nightly
-        assets: scrape-snapshot-nightly.tgz|${{ runner.temp }}/scrape-snapshot-nightly.tgz
+        assets: scrape-snapshot-nightly.tgz
         github_token: ${{ inputs.github-token }}
         working-directory: ${{ runner.temp }}
 
     - name: Debug Download Result
       shell: bash
-      working-directory: ${{ runner.temp }}
+      working-directory: ${{ github.workspace }}
       run: |
         echo "📂 Directory contents after download:"
         ls -la
@@ -126,7 +126,7 @@ runs:
 
     - name: Extract Nightly Scrape Data
       shell: bash
-      working-directory: ${{ runner.temp }}
+      working-directory: ${{ github.workspace }}
       run: |
         echo "📦 Extracting nightly scrape data..."
         mkdir -p scrape-snapshot-nightly
