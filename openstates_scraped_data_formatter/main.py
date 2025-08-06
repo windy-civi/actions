@@ -16,7 +16,6 @@ from utils.process_utils import process_and_save
 from postprocessors.event_bill_linker import link_events_to_bills_pipeline
 from utils.file_utils import verify_folder_exists
 
-BASE_FOLDER = Path(__file__).parent.parent
 SESSION_MAPPING = {}
 
 
@@ -33,25 +32,26 @@ SESSION_MAPPING = {}
     help="Path to the input folder containing JSON files.",
 )
 @click.option(
-    "--allow-session-fix/--no-allow-session-fix",
-    default=True,
-    help="Allow interactive session fixes when session names are missing.",
+    "--output-folder",
+    type=click.Path(file_okay=False, dir_okay=True, path_type=Path),
+    required=True,
+    help="Path to the output folder where processed files will be saved.",
 )
 def main(
     state: str,
     input_folder: Path,
-    allow_session_fix: bool,
+    output_folder: Path,
 ):
     STATE_ABBR = state.lower()
-    DATA_OUTPUT = BASE_FOLDER / "data_output"
+    DATA_OUTPUT = output_folder / "data_output"
     DATA_PROCESSED_FOLDER = DATA_OUTPUT / "data_processed"
     DATA_NOT_PROCESSED_FOLDER = DATA_OUTPUT / "data_not_processed"
     EVENT_ARCHIVE_FOLDER = DATA_OUTPUT / "event_archive"
     # Created to map bills with no session metadata
-    BILL_TO_SESSION_FILE = BASE_FOLDER / "bill_session_mapping" / f"{STATE_ABBR}.json"
+    BILL_TO_SESSION_FILE = output_folder / "bill_session_mapping" / f"{STATE_ABBR}.json"
     # Maps dates to session names and folders
     # e.g. "113": {"name": "113th Congress", "date_folder": "2013-2015"}
-    SESSION_MAPPING_FILE = BASE_FOLDER / "sessions" / f"{STATE_ABBR}.json"
+    SESSION_MAPPING_FILE = output_folder / "sessions" / f"{STATE_ABBR}.json"
     SESSION_LOG_PATH = DATA_OUTPUT / "new_sessions_added.txt"
 
     # Ensure output folders exist
@@ -65,7 +65,7 @@ def main(
     verify_folder_exists(input_folder)
     # 2. Ensure state specific session mapping is available
     SESSION_MAPPING.update(
-        ensure_session_mapping(STATE_ABBR, BASE_FOLDER, input_folder)
+        ensure_session_mapping(STATE_ABBR, output_folder, input_folder)
     )
 
     # 3. Load and parse all input JSON files
