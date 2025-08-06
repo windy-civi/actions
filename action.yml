@@ -168,7 +168,7 @@ runs:
     
     - name: Show Output Directory Structure
       shell: bash
-      working-directory: ${{ runner.temp }}
+      working-directory: ${{ runner.temp }}/scraped_data
       run: |
         echo "📂 Output directory structure:"
         tree -L 3 -f -n --filelimit 5 ./
