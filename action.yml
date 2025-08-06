@@ -47,7 +47,7 @@ runs:
         echo "🔧 Setting up working directory..."
         # Create working directory outside git repo
         mkdir -p ${RUNNER_TEMP}
-        mkdir -p ${RUNNER_TEMP}/release_scraped_data
+        mkdir -p ${RUNNER_TEMP}/scrape-snapshot-nightly
         echo "✅ Working directory created at ${RUNNER_TEMP}"
 
     # - name: Check Cache Usage
@@ -111,7 +111,7 @@ runs:
         echo "✅ Data scraping completed"
         
         echo "📦 Creating archive of scraped data..."
-        tar zcvf scrape-snapshot-nightly.tgz --mode=755 -C _working/_data .
+        tar zcvf scrape-snapshot-nightly.tgz --mode=755 -C _working/_data/${{ inputs.state }} .
         echo "✅ Data archived successfully"
 
     # - name: Scrape Data
@@ -169,20 +169,21 @@ runs:
       uses: actions/download-artifact@v4
       with:
         name: scrape-snapshot-nightly
-        path: ${{ runner.temp }}/
+        path: ${{ runner.temp }}/scrape-snapshot-nightly
 
     - name: Extract Nightly Scrape Data
       shell: bash
-      working-directory: ${{ runner.temp }}/
+      working-directory: ${{ runner.temp }}/scrape-snapshot-nightly
       run: |
         echo "📦 Extracting nightly scrape data..."
         tar xzf scrape-snapshot-nightly.tgz
+        rm scrape-snapshot-nightly.tgz
         echo "✅ Data extraction complete"
 
 
     - name: Show Output Directory Structure
       shell: bash
-      working-directory: ${{ github.workspace }}/
+      working-directory: ${{ runner.temp }}/scrape-snapshot-nightly
       run: |
         echo "📂 Output directory structure:"
         tree -L 3 -f -n --filelimit 5 ./
