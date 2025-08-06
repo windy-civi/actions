@@ -47,6 +47,7 @@ runs:
         echo "🔧 Setting up working directory..."
         # Create working directory outside git repo
         mkdir -p ${RUNNER_TEMP}
+        mkdir -p ${RUNNER_TEMP}/release_scraped_data
         echo "✅ Working directory created at ${RUNNER_TEMP}"
 
     # - name: Check Cache Usage
@@ -156,16 +157,17 @@ runs:
         files: |
           ${{ runner.temp }}/scrape-snapshot-nightly.tgz
 
-    - name: Download Scraped Release Data
-      uses: harrict/release-downloader@v1
-      with:
-        token: ${{ inputs.github-token }}
-        tag: 'nightly'
-        filename: scrape-snapshot-nightly.tgz
-        tarBall: true
-        extract: true
-        out-file-path: release_scraped_data
-    
+    - name: Download & Extract Nightly Scrape Data
+      shell: bash
+      working-directory: ${{ runner.temp }}/release_scraped_data
+      run: |
+        echo "📥 Downloading nightly scrape data..."
+        gh release download nightly --pattern "scrape-snapshot-nightly.tgz"
+        echo "✅ Download complete"
+        echo "📦 Extracting nightly scrape data..."
+        tar xzf scrape-snapshot-nightly.tgz
+        echo "✅ Extraction complete"
+
     - name: Show Output Directory Structure
       shell: bash
       working-directory: ${{ github.workspace }}/release_scraped_data
