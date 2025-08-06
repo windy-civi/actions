@@ -148,6 +148,7 @@ runs:
 
     - name: Convert Data To Blockchain Format
       working-directory: ${{ runner.temp }}
+      shell: bash
       env:
         FORMATTER_INPUT_FOLDER: ${{ runner.temp }}/scrape-snapshot-nightly
         FORMATTER_OUTPUT_FOLDER: ${{ github.workspace }}
