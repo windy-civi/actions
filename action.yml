@@ -1,6 +1,22 @@
 name: 'OpenStates Data Pipeline'
 description: 'Complete pipeline to scrape, sanitize, and format OpenStates data'
 
+# USAGE EXAMPLE:
+# This composite action requires secrets to be passed as inputs when used by other repositories:
+#
+# - name: Run OpenStates Pipeline
+#   uses: ./
+#   with:
+#     state: 'tx'
+#     github-token: ${{ secrets.GITHUB_TOKEN }}
+#     repository: 'owner/repo-name'
+#     allow-session-fix: 'false'
+#
+# SECRETS HANDLING:
+# - github-token: Pass ${{ secrets.GITHUB_TOKEN }} or a PAT with repo permissions
+# - repository: The repository where releases will be created (defaults to calling repo)
+# - All other secrets must be explicitly passed as inputs
+
 inputs:
   state:
     description: 'State abbreviation (e.g., id, il, tx, ny)'
@@ -13,6 +29,10 @@ inputs:
     description: 'Skip scraping and use the most recent artifact from this repository instead'
     required: false
     default: 'false'
+  github-token:
+    description: 'GitHub token for creating releases and downloading artifacts'
+    required: false
+    default: '${{ github.token }}'
 
 runs:
   using: 'composite'
@@ -41,7 +61,6 @@ runs:
           cache-scrapes-
 
     - name: Clone and Build Scrapers from Source
-      if: inputs.use-scrape-cache != 'true'
       shell: bash
       working-directory: ${{ github.workspace }}
       run: |
@@ -53,7 +72,6 @@ runs:
         echo "✅ Docker image built successfully"
 
     - name: Scrape Data
-      if: inputs.use-scrape-cache != 'true'
       shell: bash
       working-directory: ${{ github.workspace }}
       run: |
@@ -71,7 +89,6 @@ runs:
         echo "✅ Data scraping completed"
         
     - name: Zip Scraped Data
-      if: inputs.use-scrape-cache != 'true'
       shell: bash
       working-directory: ${{ runner.temp }}/_working
       run: |
@@ -80,75 +97,35 @@ runs:
         echo "✅ Data zipped successfully"
 
     - name: Upload OCD Scraped Data as Artifact
-      if: inputs.use-scrape-cache != 'true'
       uses: actions/upload-artifact@v4
       with:
         name: ocd-scraped-data-${{ inputs.state }}
         path: ${{ runner.temp }}/_working/${{ inputs.state }}.zip
         retention-days: 30
 
-    - name: Skip scraping (using latest artifact)
-      if: inputs.use-scrape-cache == 'true'
-      shell: bash
-      working-directory: ${{ runner.temp }}/_working
-      run: |
-        echo "⏭️ Skipping scraping - using latest artifact data"
-        echo "✅ Using pre-processed data from latest artifact"
-
-    - name: Download OCD Scraped Data for Processing
-      uses: actions/download-artifact@v4
-      with:
-        name: ocd-scraped-data-${{ inputs.state }}
-        path: ${{ runner.temp }}/_working/
-
-    - name: Unzip Scraped Data
-      shell: bash
-      working-directory: ${{ runner.temp }}/_working
-      run: |
-        echo "📂 Unzipping scraped data for ${{ inputs.state }}..."
-        unzip -o ${{ inputs.state }}.zip
-        rm ${{ inputs.state }}.zip
-        echo "✅ Data unzipped successfully"
-
-    - name: Sanitize Data (removes _id and scraped_at)
-      shell: bash
-      working-directory: ${{ runner.temp }}/_working
-      run: |
-        echo "🧹 Sanitizing JSON data (removing _id and scraped_at fields)..."
-        # Sanitize JSON files with proper error handling
-        find data/${{ inputs.state }}/ -type f -name "*.json" -exec bash -c '
-          if [ -f "{}" ]; then
-            jq "del(..|._id?, .scraped_at?)" "{}" > "{}.tmp" && mv "{}.tmp" "{}"
-          fi
-        ' \;
-        echo "✅ Data sanitization completed"
-
-    - name: Install dependencies
-      shell: bash
-      working-directory: ${{ github.workspace }}
-      run: |
-        echo "📦 Installing Python dependencies..."
-        pip install pipenv
-        pipenv install --deploy
-        echo "✅ Dependencies installed successfully"
-
-    - name: Format scraped data
-      if: inputs.use-scrape-cache != 'true'
-      shell: bash
-      working-directory: ${{ github.workspace }}/openstates_scraped_data_formatter
+    - name: Create Release for Scraped Data
+      uses: actions/create-release@v1
       env:
-        FORMATTER_INPUT_FOLDER: ${{ runner.temp }}/_working/data/${{ inputs.state }}
-      run: |
-        echo "🔧 Formatting scraped data for ${{ inputs.state }}..."
-        pipenv run python main.py \
-          --state ${{ inputs.state }} \
-          --input-folder ${{ runner.temp }}/_working/data/${{ inputs.state }} \
-          --allow-session-fix ${{ inputs.allow-session-fix }}
-        echo "✅ Data formatting completed"
-
-    - name: Upload OCD Blockchain Data as Artifact
-      uses: actions/upload-artifact@v4
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       with:
-        name: ocd-blockchain-data-${{ inputs.state }}
-        path: data_output/
-        retention-days: 30
+        tag_name: scraped-data-${{ inputs.state }}-${{ github.run_number }}
+        release_name: Scraped Data Release - ${{ inputs.state }} v${{ github.run_number }}
+        body: |
+          Scraped data artifacts for ${{ inputs.state }} from run ${{ github.run_number }}
+          
+          - State: ${{ inputs.state }}
+          - Run Number: ${{ github.run_number }}
+          - Commit: ${{ github.sha }}
+          - Branch: ${{ github.ref_name }}
+        draft: false
+        prerelease: false
+
+    - name: Upload Scraped Data to Release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      with:
+        url: ${{ steps.create_release.outputs.upload_url }}
+        file: ${{ runner.temp }}/_working/${{ inputs.state }}.zip
+        asset_name: ${{ inputs.state }}-scraped-data.zip
+        asset_content_type: application/zip
