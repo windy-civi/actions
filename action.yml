@@ -91,6 +91,7 @@ runs:
     #     echo "✅ Docker image built successfully"
 
     - name: Scrape Data
+      if: inputs.use-scrape-cache != 'true'
       working-directory: ${{ runner.temp }}
       shell: bash
       run: |
@@ -155,15 +156,15 @@ runs:
         files: |
           ${{ runner.temp }}/scrape-snapshot-nightly.tgz
 
-    - name: Download Release
+    - name: Download Scraped Release Data
       uses: harrict/release-downloader@v1
       with:
         token: ${{ inputs.github-token }}
         tag: 'nightly'
-        filename: ${{ inputs.state }}.zip
-        zipBall: true
+        filename: scrape-snapshot-nightly.tgz
+        tarBall: true
         extract: true
-        out-file-path: ${{ runner.temp }}
+        out-file-path: ${{ runner.temp }}/scraped_data
     
     - name: Show Output Directory Structure
       shell: bash
