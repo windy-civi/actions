@@ -112,19 +112,6 @@ runs:
         github_token: ${{ inputs.github-token }}
         working-directory: ${{ runner.temp }}
 
-    - name: Debug Download Result
-      shell: bash
-      working-directory: ${{ github.workspace }}
-      run: |
-        echo "📂 Directory contents after download:"
-        ls -la
-        echo "🔍 Looking for scrape-snapshot-nightly.tgz:"
-        find . -name "scrape-snapshot-nightly.tgz" -type f
-        echo "📂 Environment variables:"
-        echo "RUNNER_TEMP: $RUNNER_TEMP"
-        echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
-        echo "Current directory: $(pwd)"
-
     - name: Extract Nightly Scrape Data
       shell: bash
       working-directory: ${{ github.workspace }}
