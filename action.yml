@@ -70,21 +70,38 @@ runs:
             openstates/scrapers:dev \
             $STATE bills --scrape --fastmode
         echo "✅ Data scraping completed"
+        
+    - name: Zip Scraped Data
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: |
+        echo "📦 Zipping scraped data for ${{ inputs.state }}..."
+        cd ${RUNNER_TEMP}/_working/_data
+        zip -r ${{ inputs.state }}.zip ${{ inputs.state }}/
+        echo "✅ Data zipped successfully"
 
     - name: Upload OCD Scraped Data as Artifact
       if: inputs.use-scrape-cache != 'true'
       uses: actions/upload-artifact@v4
       with:
         name: ocd-scraped-data-${{ inputs.state }}
-        path: ${{ runner.temp }}/_working/_data/${{ inputs.state }}/
+        path: ${{ runner.temp }}/_working/_data/${{ inputs.state }}.zip
         retention-days: 30
 
     - name: Download OCD Scraped Data for Processing
-      if: inputs.use-scrape-cache != 'true'
       uses: actions/download-artifact@v4
       with:
         name: ocd-scraped-data-${{ inputs.state }}
-        path: ${{ runner.temp }}/_working/_data/${{ inputs.state }}/
+        path: ./
+
+    - name: Unzip Scraped Data
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: |
+        echo "📂 Unzipping scraped data for ${{ inputs.state }}..."
+        unzip -o ${{ inputs.state }}.zip -d ./
+        rm ${{ inputs.state }}.zip
+        echo "✅ Data unzipped successfully"
 
     - name: Sanitize Data (removes _id and scraped_at)
       shell: bash
@@ -92,7 +109,7 @@ runs:
       run: |
         echo "🧹 Sanitizing JSON data (removing _id and scraped_at fields)..."
         # Sanitize JSON files with proper error handling
-        find ${RUNNER_TEMP}/_working/_data -type f -name "*.json" -exec bash -c '
+        find ./ -type f -name "*.json" -exec bash -c '
           if [ -f "{}" ]; then
             jq "del(..|._id?, .scraped_at?)" "{}" > "{}.tmp" && mv "{}.tmp" "{}"
           fi
@@ -113,12 +130,12 @@ runs:
       shell: bash
       working-directory: ./openstates_scraped_data_formatter
       env:
-        FORMATTER_INPUT_FOLDER: ${{ runner.temp }}/_working/_data/${{ inputs.state }}
+        FORMATTER_INPUT_FOLDER: ./
       run: |
         echo "🔧 Formatting scraped data for ${{ inputs.state }}..."
         pipenv run python main.py \
           --state ${{ inputs.state }} \
-          --input-folder ${{ runner.temp }}/_working/_data/${{ inputs.state }} \
+          --input-folder ./ \
           --allow-session-fix ${{ inputs.allow-session-fix }}
         echo "✅ Data formatting completed"
 
