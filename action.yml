@@ -97,33 +97,20 @@ runs:
       run: |
         echo "🕷️ Starting data scraping for ${{ inputs.state }}..."
         # Ensure directories exist
-        mkdir -p ./data
-        mkdir -p ./cache
+        mkdir -p /var/tmp/_working
         
         echo "🐳 Running scraper in Docker container..."
         # Get current user and group IDs for Docker
-        USER_ID=$(id -u)
-        GROUP_ID=$(id -g)
         echo "🔧 Running Docker with user ID: $USER_ID and group ID: $GROUP_ID"
         docker run \
-            --user $USER_ID:$GROUP_ID \
-            -v "./data":/opt/openstates/openstates/_data \
-            -v "./cache":/opt/openstates/openstates/_cache \
+            -v "_working/_data":/opt/openstates/openstates/_data \
+            -v "_working/_cache":/opt/openstates/openstates/_cache \
             openstates/scrapers:dev \
-            $STATE bills --scrape --fastmode
+            ${{ inputs.state }} bills --scrape --fastmode
         echo "✅ Data scraping completed"
-        
-        echo "🔑 Updating file permissions..."
-        chmod -R 777 ./data
-        echo "✅ File permissions updated"
-        
-    - name: Zip Scraped Data
-      if: inputs.use-scrape-cache != 'true'
-      shell: bash
-      working-directory: ${{ runner.temp }}
-      run: |
+  
         echo "📦 Zipping scraped data for ${{ inputs.state }}..."
-        zip -r -q ${{ inputs.state }}.zip ./data/${{ inputs.state }}/
+        tar zcvf scrape-snapshot-nightly.tgz --mode=755 -C _working/_data .
         echo "✅ Data zipped successfully"
 
     - name: Upload OCD Scraped Data as Artifact
