@@ -68,25 +68,15 @@ runs:
             -v "${RUNNER_TEMP}/_working/_data":/opt/openstates/openstates/_data \
             -v "${RUNNER_TEMP}/_working/_cache":/opt/openstates/openstates/_cache \
             openstates/scrapers:dev \
-            ${{ inputs.state }} bills --scrape --fastmode
+            $STATE bills --scrape --fastmode
         echo "✅ Data scraping completed"
-
-    - name: Zip OCD Scraped Data
-      if: inputs.use-scrape-cache != 'true'
-      shell: bash
-      working-directory: ${{ github.workspace }}
-      run: |
-        echo "📦 Zipping OCD scraped data..."
-        cd ${RUNNER_TEMP}/_working/_data
-        zip -r ocd-scraped-data-${{ inputs.state }}.zip "${{ inputs.state }}"/
-        echo "✅ Scraped data zipped successfully"
 
     - name: Upload OCD Scraped Data as Artifact
       if: inputs.use-scrape-cache != 'true'
       uses: actions/upload-artifact@v4
       with:
         name: ocd-scraped-data-${{ inputs.state }}
-        path: ${{ runner.temp }}/_working/_data/ocd-scraped-data-${{ inputs.state }}.zip
+        path: ${{ runner.temp }}/_working/_data/${{ inputs.state }}/
         retention-days: 30
 
     - name: Download OCD Scraped Data for Processing
@@ -94,75 +84,20 @@ runs:
       uses: actions/download-artifact@v4
       with:
         name: ocd-scraped-data-${{ inputs.state }}
-        path: ${{ runner.temp }}/_working/_data/
-        if-no-artifact-found: error
-
-    - name: Extract Downloaded Data
-      if: inputs.use-scrape-cache != 'true'
-      shell: bash
-      working-directory: ${{ github.workspace }}
-      run: |
-        echo "📦 Extracting downloaded artifact data..."
-        cd ${RUNNER_TEMP}/_working/_data
-        echo "🔍 Debug: Listing contents of download directory:"
-        ls -la
-        echo "🔍 Debug: Checking for zip file..."
-        if [ -f "ocd-scraped-data-${{ inputs.state }}.zip" ]; then
-          echo "📦 Found zip file, extracting..."
-          unzip -o "ocd-scraped-data-${{ inputs.state }}.zip"
-          echo "✅ Artifact data extracted successfully"
-        else
-          echo "⚠️ Artifact zip file not found, checking for direct state folder..."
-          if [ -d "${{ inputs.state }}" ]; then
-            echo "✅ State folder found directly"
-          else
-            echo "❌ No artifact data found"
-            echo "🔍 Debug: Available files and directories:"
-            ls -la
-            exit 1
-          fi
-        fi
+        path: ${{ runner.temp }}/_working/_data/${{ inputs.state }}/
 
     - name: Sanitize Data (removes _id and scraped_at)
       shell: bash
       working-directory: ${{ github.workspace }}
       run: |
         echo "🧹 Sanitizing JSON data (removing _id and scraped_at fields)..."
-        
-        # Verify data directory exists
-        if [ ! -d "${RUNNER_TEMP}/_working/_data" ]; then
-          echo "❌ Error: Data directory does not exist: ${RUNNER_TEMP}/_working/_data"
-          exit 1
-        fi
-        
-        # Check if state-specific directory exists
-        if [ ! -d "${RUNNER_TEMP}/_working/_data/${{ inputs.state }}" ]; then
-          echo "❌ Error: State directory does not exist: ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}"
-          echo "🔍 Debug: Available directories in data folder:"
-          ls -la ${RUNNER_TEMP}/_working/_data/
-          exit 1
-        fi
-        
-        # Count JSON files before processing
-        JSON_COUNT=$(find ${RUNNER_TEMP}/_working/_data -type f -name "*.json" | wc -l)
-        echo "📊 Found $JSON_COUNT JSON files to sanitize"
-        
-        if [ "$JSON_COUNT" -eq 0 ]; then
-          echo "⚠️ Warning: No JSON files found to sanitize"
-          echo "🔍 Debug: Listing contents of data directory:"
-          find ${RUNNER_TEMP}/_working/_data -type f | head -20
-          echo "✅ Continuing without sanitization (no JSON files found)"
-        else
-          # Sanitize JSON files with proper error handling
-          echo "🔧 Starting JSON sanitization..."
-          find ${RUNNER_TEMP}/_working/_data -type f -name "*.json" -exec bash -c '
-            if [ -f "{}" ]; then
-              echo "Processing: {}"
-              jq "del(..|._id?, .scraped_at?)" "{}" > "{}.tmp" && mv "{}.tmp" "{}"
-            fi
-          ' \;
-          echo "✅ Data sanitization completed"
-        fi
+        # Sanitize JSON files with proper error handling
+        find ${RUNNER_TEMP}/_working/_data -type f -name "*.json" -exec bash -c '
+          if [ -f "{}" ]; then
+            jq "del(..|._id?, .scraped_at?)" "{}" > "{}.tmp" && mv "{}.tmp" "{}"
+          fi
+        ' \;
+        echo "✅ Data sanitization completed"
 
     - name: Install dependencies
       shell: bash
@@ -187,51 +122,17 @@ runs:
           --allow-session-fix ${{ inputs.allow-session-fix }}
         echo "✅ Data formatting completed"
 
-    - name: Download Cached Artifact for Processing
-      if: inputs.use-scrape-cache == 'true'
-      uses: actions/download-artifact@v4
-      with:
-        name: ocd-scraped-data-${{ inputs.state }}
-        path: ${{ runner.temp }}/_working/_data/
-        if-no-artifact-found: error
-
-    - name: Extract Cached Artifact Data
+    - name: Skip scraping (using latest artifact)
       if: inputs.use-scrape-cache == 'true'
       shell: bash
       working-directory: ${{ github.workspace }}
       run: |
-        echo "📦 Extracting cached artifact data..."
-        cd ${RUNNER_TEMP}/_working/_data
-        echo "🔍 Debug: Listing contents of download directory:"
-        ls -la
-        echo "🔍 Debug: Checking for zip file..."
-        if [ -f "ocd-scraped-data-${{ inputs.state }}.zip" ]; then
-          echo "📦 Found zip file, extracting..."
-          unzip -o "ocd-scraped-data-${{ inputs.state }}.zip"
-          echo "✅ Cached artifact data extracted successfully"
-        else
-          echo "⚠️ Cached artifact zip file not found, checking for direct state folder..."
-          if [ -d "${{ inputs.state }}" ]; then
-            echo "✅ State folder found directly"
-          else
-            echo "❌ No cached artifact data found"
-            echo "🔍 Debug: Available files and directories:"
-            ls -la
-            exit 1
-          fi
-        fi
-
-    - name: Zip OCD Blockchain Data
-      shell: bash
-      working-directory: ${{ github.workspace }}
-      run: |
-        echo "📦 Zipping OCD blockchain data..."
-        zip -r data_output.zip data_output/
-        echo "✅ Blockchain data zipped successfully"
+        echo "⏭️ Skipping scraping - using latest artifact data"
+        echo "✅ Using pre-processed data from latest artifact"
 
     - name: Upload OCD Blockchain Data as Artifact
       uses: actions/upload-artifact@v4
       with:
         name: ocd-blockchain-data-${{ inputs.state }}
-        path: data_output.zip
+        path: data_output/
         retention-days: 30
