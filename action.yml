@@ -121,10 +121,23 @@ runs:
         tar xzf scrape-snapshot-nightly.tgz -C ${{ runner.temp }}/scrape-snapshot-nightly
         echo "✅ Extraction complete"
 
-    - name: Show Output Directory Structure
+    - name: Verify count of files are present
       shell: bash
       working-directory: ${{ runner.temp }}/scrape-snapshot-nightly
       run: |
         echo "📂 Counting JSON files..."
         find . -type f -name "*.json" | wc -l
         echo "✅ JSON file count complete"
+
+    - name: Sanitize Data (removes _id and scraped_at)
+      shell: bash
+      working-directory: ${{ runner.temp }}/scrape-snapshot-nightly
+      run: |
+        echo "🧹 Sanitizing JSON data (removing _id and scraped_at fields)..."
+        # Sanitize JSON files with proper error handling
+        find data/${{ inputs.state }}/ -type f -name "*.json" -exec bash -c '
+          if [ -f "{}" ]; then
+            jq "del(..|._id?, .scraped_at?)" "{}" > "{}.tmp" && mv "{}.tmp" "{}"
+          fi
+        ' \;
+        echo "✅ Data sanitization completed"
