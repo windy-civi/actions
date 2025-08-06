@@ -116,8 +116,8 @@ runs:
       working-directory: ${{ github.workspace }}
       run: |
         echo "📦 Extracting nightly scrape data..."
-        mkdir -p scrape-snapshot-nightly
         tar xzf scrape-snapshot-nightly.tgz -C ${{ runner.temp }}/scrape-snapshot-nightly
+        rm scrape-snapshot-nightly.tgz
         echo "✅ Extraction complete"
 
     - name: Verify count of files are present
@@ -145,3 +145,54 @@ runs:
         count=$(cat count.tmp)
         rm count.tmp
         echo "✅ Data sanitization completed - processed $count files"
+
+    - name: Convert Data To Blockchain Format
+      shell: bash
+      env:
+        FORMATTER_INPUT_FOLDER: ${{ runner.temp }}/scrape-snapshot-nightly
+        FORMATTER_OUTPUT_FOLDER: ${{ github.workspace }}
+        STATE: ${{ inputs.state }}
+      run: |
+        cd ${{ github.action_path }}
+        pip install pipenv
+        pipenv install
+        pipenv run python ${{ github.action_path }}/openstates_scraped_data_formatter/main.py --state $STATE --input-folder $FORMATTER_INPUT_FOLDER --output-folder $FORMATTER_OUTPUT_FOLDER
+
+    - name: Check Git Status
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: |
+        echo "📊 Checking git status..."
+        git status
+        echo "✅ Git status check complete"
+
+    # - name: Copy Scraped Data to Repo
+    #     run: |
+    #       mkdir -p "$GITHUB_WORKSPACE/_data/$STATE"
+    #       cp -r "${RUNNER_TEMP}/_working/_data/$STATE"/* "$GITHUB_WORKSPACE/_data/$STATE/"
+
+    # - name: Update Repo
+    #     env:
+    #       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #     run: |
+    #       git config user.email "no_email"
+    #       git config user.name "Windy Civi Bot"
+    #       git fetch origin main
+    #       git pull origin main --rebase || true
+
+    #       git add _data data_output bill_session_mapping sessions
+    #       git diff --cached --quiet && echo "No changes to commit" || git commit -m "Automated report update (report dated ${{ steps.get-date.outputs.date }})"
+    #       git push || echo "⚠️ Git push failed — possibly due to upstream changes."
+ # - name: Update Repo
+      #   env:
+      #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   shell: bash
+      #   run: |
+      #     git config user.email "no_email"
+      #     git config user.name "Windy Civi Bot"
+      #     git fetch origin main
+      #     git pull origin main --rebase || true
+
+      #     git add data_output bill_session_mapping sessions
+      #     git diff --cached --quiet && echo "No changes to commit" || git commit -m "Automated report update (report dated ${{ steps.get-date.outputs.date }})"
+      #     git push || echo "⚠️ Git push failed — possibly due to upstream changes."
