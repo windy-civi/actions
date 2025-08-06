@@ -161,18 +161,19 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
-      working-directory: ${{ runner.temp }}/release_scraped_data
+      working-directory: ${{ github.workspace }}
       run: |
         echo "📥 Downloading nightly scrape data..."
-        gh release download nightly --pattern "scrape-snapshot-nightly.tgz"
+        gh release download nightly --pattern "scrape-snapshot-nightly.tgz" --dir ${{ runner.temp }}/release_scraped_data
         echo "✅ Download complete"
         echo "📦 Extracting nightly scrape data..."
+        cd ${{ runner.temp }}/release_scraped_data
         tar xzf scrape-snapshot-nightly.tgz
         echo "✅ Extraction complete"
 
     - name: Show Output Directory Structure
       shell: bash
-      working-directory: ${{ github.workspace }}/release_scraped_data
+      working-directory: ${{ runner.temp }}/release_scraped_data
       run: |
         echo "📂 Output directory structure:"
         tree -L 3 -f -n --filelimit 5 ./
