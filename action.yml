@@ -94,13 +94,23 @@ runs:
       working-directory: ${{ runner.temp }}
       shell: bash
       run: |
+        echo "🕷️ Starting data scraping for ${{ inputs.state }}..."
+        # Ensure directories exist
+        mkdir -p ./_working/_data
+        mkdir -p ./_working/_cache
+        
+        echo "🐳 Running scraper in Docker container..."
         docker pull openstates/scrapers:latest
         docker run \
-            -v "_working/_data":/opt/openstates/openstates/_data \
-            -v "_working/_cache":/opt/openstates/openstates/_cache \
+            -v "$(pwd)/_working/_data":/opt/openstates/openstates/_data \
+            -v "$(pwd)/_working/_cache":/opt/openstates/openstates/_cache \
             openstates/scrapers:latest \
-            il bills --scrape --fastmode
+            ${{ inputs.state }} bills --scrape --fastmode
+        echo "✅ Data scraping completed"
+        
+        echo "📦 Creating archive of scraped data..."
         tar zcvf scrape-snapshot-nightly.tgz --mode=755 -C _working/_data .
+        echo "✅ Data archived successfully"
 
     # - name: Scrape Data
     #   if: inputs.use-scrape-cache != 'true'
