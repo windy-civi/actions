@@ -138,6 +138,6 @@ runs:
       shell: bash
       working-directory: ${{ runner.temp }}/scrape-snapshot-nightly
       run: |
-        echo "📂 Output directory structure:"
-        tree -L 3 -f -n --filelimit 5 ./
-        echo "✅ Directory listing complete"
+        echo "📂 Counting JSON files..."
+        find . -type f -name "*.json" | wc -l
+        echo "✅ JSON file count complete"
