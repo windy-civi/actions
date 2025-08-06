@@ -100,6 +100,11 @@ runs:
             openstates/scrapers:dev \
             $STATE bills --scrape --fastmode
         echo "✅ Data scraping completed"
+
+        echo "🔑 Setting file permissions..."
+        chmod -R 777 /opt/openstates/openstates/_data
+        echo "✅ File permissions updated successfully"
+
         
     - name: Zip Scraped Data
       if: inputs.use-scrape-cache != 'true'
@@ -133,7 +138,7 @@ runs:
     - name: Download Release
       uses: harrict/release-downloader@v1
       with:
-        github_token: ${{ inputs.github-token }}
+        token: ${{ inputs.github-token }}
         tag: 'nightly'
         filename: ${{ inputs.state }}.zip
         zipBall: true
