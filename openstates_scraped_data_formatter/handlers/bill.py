@@ -5,12 +5,9 @@ from utils.file_utils import format_timestamp, record_error_file, write_action_l
 from utils.download_pdf import download_bill_pdf
 from utils.timestamp_tracker import (
     update_latest_timestamp,
-    latest_timestamps,
     to_dt_obj,
+    LatestTimestamps,
 )
-
-BILL_LATEST_TIMESTAMP = latest_timestamps["bills"]
-print(f"💬 (Bill handler) Current latest timestamp: {BILL_LATEST_TIMESTAMP}")
 
 
 def handle_bill(
@@ -19,6 +16,7 @@ def handle_bill(
     DATA_PROCESSED_FOLDER: Path,
     DATA_NOT_PROCESSED_FOLDER: Path,
     filename: str,
+    latest_timestamps: LatestTimestamps,
 ) -> bool:
     """
     Handles a bill JSON file by saving:
@@ -33,7 +31,6 @@ def handle_bill(
         bool: True if saved successfully, False if skipped due to missing identifier.
     """
     DOWNLOAD_PDFS = False
-    global BILL_LATEST_TIMESTAMP
 
     bill_identifier = data.get("identifier")
     if not bill_identifier:
@@ -79,8 +76,8 @@ def handle_bill(
         timestamp = format_timestamp(sorted(dates)[0]) if dates else None
         if timestamp and timestamp != "unknown":
             current_dt = to_dt_obj(timestamp)
-            BILL_LATEST_TIMESTAMP = update_latest_timestamp(
-                "bills", current_dt, BILL_LATEST_TIMESTAMP
+            latest_timestamps["bills"] = update_latest_timestamp(
+                "bills", current_dt, latest_timestamps["bills"], latest_timestamps
             )
     else:
         timestamp = None

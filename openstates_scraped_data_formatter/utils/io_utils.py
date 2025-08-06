@@ -3,8 +3,8 @@ import json
 from pathlib import Path
 from utils.file_utils import record_error_file
 from utils.timestamp_tracker import (
-    latest_timestamps,
     is_newer_than_latest,
+    LatestTimestamps,
 )
 
 
@@ -12,6 +12,7 @@ def load_json_files(
     input_folder: str | Path,
     EVENT_ARCHIVE_FOLDER: str | Path,
     DATA_NOT_PROCESSED_FOLDER: str | Path,
+    latest_timestamps: LatestTimestamps,
 ):
     bills_ts = latest_timestamps["bills"]
     vote_events_ts = latest_timestamps["vote_events"]

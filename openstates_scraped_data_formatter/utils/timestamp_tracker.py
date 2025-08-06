@@ -1,18 +1,40 @@
 import json
 from pathlib import Path
 from datetime import datetime
-from typing import Any, Optional
-from utils.file_utils import format_timestamp, record_error_file
+from typing import Any, Optional, TypedDict
+from .file_utils import format_timestamp, record_error_file
 
-LATEST_TIMESTAMP_PATH = (
-    Path(__file__).resolve().parents[2] / "data_output/latest_timestamp_seen.txt"
-)
 
-latest_timestamps: dict[str, datetime] = {
-    "bills": datetime(1900, 1, 1),
-    "vote_events": datetime(1900, 1, 1),
-    "events": datetime(1900, 1, 1),
-}
+class LatestTimestamps(TypedDict):
+    """Type definition for the latest timestamps dictionary."""
+    bills: datetime
+    vote_events: datetime
+    events: datetime
+
+
+def get_latest_timestamp_path(output_folder: Path) -> Path:
+    """Get the path to the latest timestamp file based on the output folder."""
+    return output_folder / "data_output" / "latest_timestamp_seen.txt"
+
+def get_default_timestamps() -> LatestTimestamps:
+    """Get default timestamps dictionary."""
+    return {
+        "bills": datetime(1900, 1, 1),
+        "vote_events": datetime(1900, 1, 1),
+        "events": datetime(1900, 1, 1),
+    }
+
+def read_latest_timestamps(output_folder: Path) -> LatestTimestamps:
+    """Read latest timestamps from file, returning defaults if file doesn't exist."""
+    timestamp_path = get_latest_timestamp_path(output_folder)
+    try:
+        with open(timestamp_path, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+            print(f"📂 Raw timestamp file contents: {json.dumps(raw, indent=2)}")
+            return {k: to_dt_obj(v) for k, v in raw.items() if v}
+    except Exception:
+        print("⚠️ No timestamp file found or invalid JSON. Using defaults.")
+        return get_default_timestamps()
 
 def to_dt_obj(ts_str: str | datetime) -> Optional[datetime]:
     if isinstance(ts_str, datetime):
@@ -27,25 +49,11 @@ def to_dt_obj(ts_str: str | datetime) -> Optional[datetime]:
         print(f"❌ Failed to parse timestamp: {ts_str} ({e})")
         return None
 
-def read_all_latest_timestamps():
-    global latest_timestamps
-    try:
-        with open(LATEST_TIMESTAMP_PATH, "r", encoding="utf-8") as f:
-            raw = json.load(f)
-            print(f"📂 Raw timestamp file contents: {json.dumps(raw, indent=2)}")
-            latest_timestamps = {k: to_dt_obj(v) for k, v in raw.items() if v}
-    except Exception:
-        print("⚠️ No timestamp file found or invalid JSON. Using defaults.")
-        latest_timestamps = {
-            "bills": datetime(1900, 1, 1),
-            "vote_events": datetime(1900, 1, 1),
-            "events": datetime(1900, 1, 1),
-        }
-
 def update_latest_timestamp(
     category: str,
     current_dt: Optional[datetime],
     existing_dt: Optional[datetime],
+    latest_timestamps: LatestTimestamps,
 ) -> Optional[datetime]:
     if not current_dt:
         return existing_dt
@@ -128,7 +136,7 @@ def is_newer_than_latest(
         )
         return False
 
-def write_latest_timestamp_file():
+def write_latest_timestamp_file(output_folder: Path, latest_timestamps: LatestTimestamps):
     try:
         output = {}
         for k, dt in latest_timestamps.items():
@@ -139,11 +147,12 @@ def write_latest_timestamp_file():
             print("⚠️ No timestamps to write.")
             return
 
-        LATEST_TIMESTAMP_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with open(LATEST_TIMESTAMP_PATH, "w", encoding="utf-8") as f:
+        timestamp_path = get_latest_timestamp_path(output_folder)
+        timestamp_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(timestamp_path, "w", encoding="utf-8") as f:
             json.dump(output, f, indent=2)
 
-        print(f"📝 Updated latest timestamp path: {LATEST_TIMESTAMP_PATH}")
+        print(f"📝 Updated latest timestamp path: {timestamp_path}")
         print("📄 File contents:")
         print(json.dumps(output, indent=2))
 

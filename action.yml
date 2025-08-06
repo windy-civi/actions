@@ -146,47 +146,44 @@ runs:
         rm count.tmp
         echo "✅ Data sanitization completed - processed $count files"
 
+    - name: Checkout Caller Repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ inputs.github-token }}
+        repository: ${{ github.repository }}
+
     - name: Convert Data To Blockchain Format
       shell: bash
       env:
-        FORMATTER_INPUT_FOLDER: ${{ runner.temp }}/scrape-snapshot-nightly
-        FORMATTER_OUTPUT_FOLDER: ${{ github.workspace }}/ocd-blockchain-${{ inputs.state }}
+        OPENSTATE_DATA_FOLDER: ${{ runner.temp }}/scrape-snapshot-nightly
+        GIT_REPO_FOLDER: ${{ github.workspace }}
         STATE: ${{ inputs.state }}
       run: |
         cd ${{ github.action_path }}
         pip install pipenv
         pipenv install
-        pipenv run python ${{ github.action_path }}/openstates_scraped_data_formatter/main.py --state $STATE --input-folder $FORMATTER_INPUT_FOLDER --output-folder $FORMATTER_OUTPUT_FOLDER
+        pipenv run python ${{ github.action_path }}/openstates_scraped_data_formatter/main.py --state $STATE --openstates-data-folder $OPENSTATE_DATA_FOLDER --git-repo-folder $GIT_REPO_FOLDER
 
-    - name: Clone Caller Repository and Push Changes
+    - name: Commit and Push Changes
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
-        CALLER_REPO: ${{ github.repository }}
-        FORMATTER_OUTPUT_FOLDER: ${{ github.workspace }}/ocd-blockchain-${{ inputs.state }}
       run: |
         echo "🔧 Setting up git configuration..."
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         git config --global user.name "github-actions[bot]"
         
-        echo "📋 Getting caller repository information..."
-        # Extract owner and repo name from the caller's repository
-        CALLER_OWNER=$(echo $CALLER_REPO | cut -d'/' -f1)
-        CALLER_REPO_NAME=$(echo $CALLER_REPO | cut -d'/' -f2)
-        
-        echo "📥 Cloning caller repository..."
-        git clone https://x-access-token:${GITHUB_TOKEN}@github.com/${CALLER_REPO}.git caller-repo
-        cd caller-repo
-        
-        echo "📁 Copying formatter output to caller repository..."
-        # Copy all contents from FORMATTER_OUTPUT_FOLDER to the root of caller repo
-        cp -r $FORMATTER_OUTPUT_FOLDER/* ./
-        
-        echo "🌳 Generating tree structure..."
-        tree -L 2
-        
         echo "📊 Checking git status..."
         git status
+        
+        echo "📁 Adding all changes..."
+        git add .
+        
+        echo "📝 Committing changes..."
+        git diff --cached --quiet && echo "No changes to commit" || git commit -m "Automated OpenStates data update for ${{ inputs.state }}"
+        
+        echo "🚀 Pushing changes..."
+        git push || echo "⚠️ Git push failed — possibly due to upstream changes."
         
         echo "✅ Repository update completed"
 

@@ -3,12 +3,9 @@ from pathlib import Path
 from tempfile import mkdtemp
 
 from utils.timestamp_tracker import (
-    read_all_latest_timestamps,
-    latest_timestamps,
+    read_latest_timestamps,
+    LatestTimestamps,
 )
-
-read_all_latest_timestamps()
-print(f"💬 Latest timestamps: {latest_timestamps}")
 
 from utils.io_utils import load_json_files
 from utils.file_utils import ensure_session_mapping
@@ -26,32 +23,32 @@ SESSION_MAPPING = {}
     help="Jurisdiction code to process.",
 )
 @click.option(
-    "--input-folder",
+    "--openstates-data-folder",
     type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
     required=True,
     help="Path to the input folder containing JSON files.",
 )
 @click.option(
-    "--output-folder",
+    "--git-repo-folder",
     type=click.Path(file_okay=False, dir_okay=True, path_type=Path),
     required=True,
     help="Path to the output folder where processed files will be saved.",
 )
 def main(
     state: str,
-    input_folder: Path,
-    output_folder: Path,
+    openstates_data_folder: Path,
+    git_repo_folder: Path,
 ):
     STATE_ABBR = state.lower()
-    DATA_OUTPUT = output_folder / "data_output"
+    DATA_OUTPUT = git_repo_folder / "data_output"
     DATA_PROCESSED_FOLDER = DATA_OUTPUT / "data_processed"
     DATA_NOT_PROCESSED_FOLDER = DATA_OUTPUT / "data_not_processed"
     EVENT_ARCHIVE_FOLDER = DATA_OUTPUT / "event_archive"
     # Created to map bills with no session metadata
-    BILL_TO_SESSION_FILE = output_folder / "bill_session_mapping" / f"{STATE_ABBR}.json"
+    BILL_TO_SESSION_FILE = git_repo_folder / "bill_session_mapping" / f"{STATE_ABBR}.json"
     # Maps dates to session names and folders
     # e.g. "113": {"name": "113th Congress", "date_folder": "2013-2015"}
-    SESSION_MAPPING_FILE = output_folder / "sessions" / f"{STATE_ABBR}.json"
+    SESSION_MAPPING_FILE = git_repo_folder / "sessions" / f"{STATE_ABBR}.json"
     SESSION_LOG_PATH = DATA_OUTPUT / "new_sessions_added.txt"
 
     # Ensure output folders exist
@@ -61,18 +58,23 @@ def main(
     (BILL_TO_SESSION_FILE.parent).mkdir(parents=True, exist_ok=True)
     (SESSION_MAPPING_FILE.parent).mkdir(parents=True, exist_ok=True)
 
+    # Read latest timestamps using the output folder
+    latest_timestamps: LatestTimestamps = read_latest_timestamps(git_repo_folder)
+    print(f"💬 Latest timestamps: {latest_timestamps}")
+
     # 1. Verify input_folder exists
-    verify_folder_exists(input_folder)
+    verify_folder_exists(openstates_data_folder)
     # 2. Ensure state specific session mapping is available
     SESSION_MAPPING.update(
-        ensure_session_mapping(STATE_ABBR, output_folder, input_folder)
+        ensure_session_mapping(STATE_ABBR, git_repo_folder, openstates_data_folder)
     )
 
     # 3. Load and parse all input JSON files
     all_json_files = load_json_files(
-        input_folder,
+        openstates_data_folder,
         EVENT_ARCHIVE_FOLDER,
         DATA_NOT_PROCESSED_FOLDER,
+        latest_timestamps,
     )
 
     # 4. Route and process by handler (returns counts)
@@ -83,6 +85,8 @@ def main(
         SESSION_MAPPING,
         SESSION_LOG_PATH,
         DATA_PROCESSED_FOLDER,
+        latest_timestamps,
+        git_repo_folder,
     )
 
     # 5. Link archived event logs to state sessions and save

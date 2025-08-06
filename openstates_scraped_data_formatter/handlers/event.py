@@ -5,12 +5,9 @@ from typing import Any
 from utils.file_utils import record_error_file, format_timestamp
 from utils.timestamp_tracker import (
     update_latest_timestamp,
-    latest_timestamps,
     to_dt_obj,
+    LatestTimestamps,
 )
-
-EVENT_LATEST_TIMESTAMP = latest_timestamps["events"]
-print(f"💬 (Event handler) Current latest timestamp: {EVENT_LATEST_TIMESTAMP}")
 
 
 def clean_event_name(name: str) -> str:
@@ -23,12 +20,12 @@ def handle_event(
     DATA_PROCESSED_FOLDER: Path,
     DATA_NOT_PROCESSED_FOLDER: Path,
     filename: str,
+    latest_timestamps: LatestTimestamps,
 ) -> bool:
     """
     Saves event JSON to the correct session folder under events,
     using a consistent timestamped format to match bill action logs.
     """
-    global EVENT_LATEST_TIMESTAMP
     event_id = data.get("_id") or filename.replace(".json", "")
     start_date = data.get("start_date")
     if not start_date:
@@ -59,8 +56,8 @@ def handle_event(
         print(f"⚠️ Event {event_id} has unrecognized timestamp format: {start_date}")
     else:
         current_dt = to_dt_obj(timestamp)
-        EVENT_LATEST_TIMESTAMP = update_latest_timestamp(
-            "events", current_dt, EVENT_LATEST_TIMESTAMP
+        latest_timestamps["events"] = update_latest_timestamp(
+            "events", current_dt, latest_timestamps["events"], latest_timestamps
         )
 
     event_name = data.get("name", "event")

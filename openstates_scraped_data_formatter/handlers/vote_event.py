@@ -3,12 +3,9 @@ from pathlib import Path
 from utils.file_utils import format_timestamp, record_error_file, write_vote_event_log
 from utils.timestamp_tracker import (
     update_latest_timestamp,
-    latest_timestamps,
     to_dt_obj,
+    LatestTimestamps,
 )
-
-VOTE_LATEST_TIMESTAMP = latest_timestamps["vote_events"]
-print(f"💬 (Vote_event handler) Current latest timestamp: {VOTE_LATEST_TIMESTAMP}")
 
 
 def handle_vote_event(
@@ -17,6 +14,7 @@ def handle_vote_event(
     DATA_PROCESSED_FOLDER: Path,
     DATA_NOT_PROCESSED_FOLDER: Path,
     filename: str,
+    latest_timestamps: LatestTimestamps,
 ) -> bool:
     """
     Handles a vote_event JSON file by:
@@ -27,7 +25,6 @@ def handle_vote_event(
 
     Skips and logs errors if bill_identifier is missing.
     """
-    global VOTE_LATEST_TIMESTAMP
 
     referenced_bill_id = data.get("bill_identifier")
     if not referenced_bill_id:
@@ -81,8 +78,8 @@ def handle_vote_event(
         print(f"⚠️ Vote Event {bill_id} has unrecognized timestamp format: {date}")
     else:
         current_dt = to_dt_obj(timestamp)
-        VOTE_LATEST_TIMESTAMP = update_latest_timestamp(
-            "vote_events", current_dt, VOTE_LATEST_TIMESTAMP
+        latest_timestamps["vote_events"] = update_latest_timestamp(
+            "vote_events", current_dt, latest_timestamps["vote_events"], latest_timestamps
         )
 
     write_vote_event_log(data, save_path / "logs")
