@@ -155,7 +155,7 @@ runs:
       run: |
         pip install pipenv
         pipenv install
-        pipenv run python openstates_scraped_data_formatter/main.py --state $STATE --input-folder $FORMATTER_INPUT_FOLDER --output-folder $FORMATTER_OUTPUT_FOLDER
+        pipenv run python ${{ github.action_path }}/openstates_scraped_data_formatter/main.py --state $STATE --input-folder $FORMATTER_INPUT_FOLDER --output-folder $FORMATTER_OUTPUT_FOLDER
 
     - name: Check Git Status
       shell: bash
