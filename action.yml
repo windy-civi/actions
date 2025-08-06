@@ -102,13 +102,6 @@ runs:
         files: |
           ${{ runner.temp }}/scrape-snapshot-nightly.tgz
 
-    # - name: Download release
-    #   uses: robinraju/release-downloader@v1
-    #   with:
-    #     token: ${{ inputs.github-token }}
-    #     tag: 'nightly'
-    #     out-file-path: ${{ github.workspace }}/downloaded_release
-
     - name: Download asset README.md from release with tag v3.0.0 
       uses: Xotl/cool-github-releases@v1
       with:
@@ -116,6 +109,20 @@ runs:
         tag_name: nightly
         assets: scrape-snapshot-nightly.tgz|${{ runner.temp }}/scrape-snapshot-nightly.tgz
         github_token: ${{ inputs.github-token }}
+        working-directory: ${{ runner.temp }}
+
+    - name: Debug Download Result
+      shell: bash
+      working-directory: ${{ runner.temp }}
+      run: |
+        echo "📂 Directory contents after download:"
+        ls -la
+        echo "🔍 Looking for scrape-snapshot-nightly.tgz:"
+        find . -name "scrape-snapshot-nightly.tgz" -type f
+        echo "📂 Environment variables:"
+        echo "RUNNER_TEMP: $RUNNER_TEMP"
+        echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
+        echo "Current directory: $(pwd)"
 
     - name: Extract Nightly Scrape Data
       shell: bash
