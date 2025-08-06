@@ -135,7 +135,7 @@ runs:
       run: |
         echo "🧹 Sanitizing JSON data (removing _id and scraped_at fields)..."
         # Sanitize JSON files with proper error handling
-        find data/${{ inputs.state }}/ -type f -name "*.json" -exec bash -c '
+        find ./ -type f -name "*.json" -exec bash -c '
           if [ -f "{}" ]; then
             jq "del(..|._id?, .scraped_at?)" "{}" > "{}.tmp" && mv "{}.tmp" "{}"
           fi
