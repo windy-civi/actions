@@ -147,7 +147,6 @@ runs:
         echo "✅ Data sanitization completed - processed $count files"
 
     - name: Convert Data To Blockchain Format
-      working-directory: ${{ github.workspace }}
       shell: bash
       env:
         FORMATTER_INPUT_FOLDER: ${{ runner.temp }}/scrape-snapshot-nightly
