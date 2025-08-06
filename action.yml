@@ -47,6 +47,7 @@ runs:
         echo "🔧 Setting up working directory..."
         # Create working directory outside git repo
         mkdir -p ${RUNNER_TEMP}
+        mkdir -p ${RUNNER_TEMP}/scrape-snapshot-nightly
         echo "✅ Working directory created at ${RUNNER_TEMP}"
 
     - name: Cache Scrapes
