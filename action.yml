@@ -182,6 +182,9 @@ runs:
         # Copy all contents from FORMATTER_OUTPUT_FOLDER to the root of caller repo
         cp -r $FORMATTER_OUTPUT_FOLDER/* ./
         
+        echo "🌳 Generating tree structure..."
+        tree -L 2
+        
         echo "📊 Checking git status..."
         git status
         
