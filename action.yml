@@ -71,6 +71,7 @@ runs:
         echo "✅ Data scraping completed"
         
     - name: Zip Scraped Data
+      if: inputs.use-scrape-cache != 'true'
       shell: bash
       working-directory: ${{ runner.temp }}/_working
       run: |
@@ -144,7 +145,6 @@ runs:
           --input-folder ${{ runner.temp }}/_working/data/${{ inputs.state }} \
           --allow-session-fix ${{ inputs.allow-session-fix }}
         echo "✅ Data formatting completed"
-
 
     - name: Upload OCD Blockchain Data as Artifact
       uses: actions/upload-artifact@v4
