@@ -164,7 +164,7 @@ runs:
         filename: scrape-snapshot-nightly.tgz
         tarBall: true
         extract: true
-        out-file-path: ./scrape-snapshot-nightly
+        out-file-path: ./scrape-snapshot-nightly-release
 
     # - name: Download Nightly Scrape Data
     #   shell: bash
@@ -174,9 +174,19 @@ runs:
     #     gh release download nightly --pattern "scrape-snapshot-nightly.tgz"
     #     echo "✅ Download complete"
 
+    - name: Extract Nightly Scrape Data
+      shell: bash
+      working-directory: ${{ github.workspace }}/scrape-snapshot-nightly-release
+      run: |
+        echo "📦 Extracting nightly scrape data..."
+        mkdir -p scraped_output
+        tar xzf scrape-snapshot-nightly.tgz -C scraped_output
+        echo "✅ Extraction complete"
+
+
     - name: Show Output Directory Structure
       shell: bash
-      working-directory: ${{ github.workspace }}/scrape-snapshot-nightly
+      working-directory: ${{ github.workspace }}/scrape-snapshot-nightly-release/scraped_output
       run: |
         echo "📂 Output directory structure:"
         tree -L 3 -f -n --filelimit 5 ./
