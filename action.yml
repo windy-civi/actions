@@ -68,6 +68,8 @@ runs:
       if: inputs.use-scrape-cache != 'true'
       working-directory: ${{ runner.temp }}
       shell: bash
+      env:
+        DOCKER_IMAGE_TAG: 6a0ce774f2c12b7fa61b25d6c964212dfe3b636c
       run: |
         echo "🕷️ Starting data scraping for ${{ inputs.state }}..."
         # Ensure directories exist
@@ -75,11 +77,11 @@ runs:
         mkdir -p ./_working/_cache
         
         echo "🐳 Running scraper in Docker container..."
-        docker pull openstates/scrapers:latest
+        docker pull openstates/scrapers:$DOCKER_IMAGE_TAG
         docker run \
             -v "$(pwd)/_working/_data":/opt/openstates/openstates/_data \
             -v "$(pwd)/_working/_cache":/opt/openstates/openstates/_cache \
-            openstates/scrapers:latest \
+            openstates/scrapers:$DOCKER_IMAGE_TAG \
             ${{ inputs.state }} bills --scrape --fastmode
         echo "✅ Data scraping completed"
         
