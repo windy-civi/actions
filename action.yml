@@ -150,7 +150,7 @@ runs:
       shell: bash
       env:
         FORMATTER_INPUT_FOLDER: ${{ runner.temp }}/scrape-snapshot-nightly
-        FORMATTER_OUTPUT_FOLDER: ${{ github.workspace }}
+        FORMATTER_OUTPUT_FOLDER: ${{ github.workspace }}/ocd-blockchain-${{ inputs.state }}
         STATE: ${{ inputs.state }}
       run: |
         cd ${{ github.action_path }}
@@ -158,13 +158,34 @@ runs:
         pipenv install
         pipenv run python ${{ github.action_path }}/openstates_scraped_data_formatter/main.py --state $STATE --input-folder $FORMATTER_INPUT_FOLDER --output-folder $FORMATTER_OUTPUT_FOLDER
 
-    - name: Check Git Status
+    - name: Clone Caller Repository and Push Changes
       shell: bash
-      working-directory: ${{ github.workspace }}
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        CALLER_REPO: ${{ github.repository }}
+        FORMATTER_OUTPUT_FOLDER: ${{ github.workspace }}/ocd-blockchain-${{ inputs.state }}
       run: |
+        echo "🔧 Setting up git configuration..."
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git config --global user.name "github-actions[bot]"
+        
+        echo "📋 Getting caller repository information..."
+        # Extract owner and repo name from the caller's repository
+        CALLER_OWNER=$(echo $CALLER_REPO | cut -d'/' -f1)
+        CALLER_REPO_NAME=$(echo $CALLER_REPO | cut -d'/' -f2)
+        
+        echo "📥 Cloning caller repository..."
+        git clone https://x-access-token:${GITHUB_TOKEN}@github.com/${CALLER_REPO}.git caller-repo
+        cd caller-repo
+        
+        echo "📁 Copying formatter output to caller repository..."
+        # Copy all contents from FORMATTER_OUTPUT_FOLDER to the root of caller repo
+        cp -r $FORMATTER_OUTPUT_FOLDER/* ./
+        
         echo "📊 Checking git status..."
         git status
-        echo "✅ Git status check complete"
+        
+        echo "✅ Repository update completed"
 
     # - name: Copy Scraped Data to Repo
     #     run: |
