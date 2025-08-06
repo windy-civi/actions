@@ -161,10 +161,7 @@ runs:
       with:
         token: ${{ inputs.github-token }}
         tag: 'nightly'
-        filename: scrape-snapshot-nightly.tgz
-        tarBall: true
-        extract: true
-        out-file-path: ./scrape-snapshot-nightly-release
+        out-file-path: ${{ runner.temp }}/scrape-snapshot-nightly-release
 
     # - name: Download Nightly Scrape Data
     #   shell: bash
@@ -176,17 +173,17 @@ runs:
 
     - name: Extract Nightly Scrape Data
       shell: bash
-      working-directory: ${{ github.workspace }}/scrape-snapshot-nightly-release
+      working-directory: ${{ runner.temp }}/downloaded_release
       run: |
         echo "📦 Extracting nightly scrape data..."
         mkdir -p scraped_output
-        tar xzf scrape-snapshot-nightly.tgz -C scraped_output
+        tar xzf scrape-snapshot-nightly.tgz -C ${{ runner.temp }}/scrape-snapshot-nightly
         echo "✅ Extraction complete"
 
 
     - name: Show Output Directory Structure
       shell: bash
-      working-directory: ${{ github.workspace }}/scrape-snapshot-nightly-release/scraped_output
+      working-directory: ${{ runner.temp }}/scrape-snapshot-nightly
       run: |
         echo "📂 Output directory structure:"
         tree -L 3 -f -n --filelimit 5 ./
