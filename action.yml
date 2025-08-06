@@ -68,7 +68,7 @@ runs:
             -v "${RUNNER_TEMP}/_working/_data":/opt/openstates/openstates/_data \
             -v "${RUNNER_TEMP}/_working/_cache":/opt/openstates/openstates/_cache \
             openstates/scrapers:dev \
-            $STATE bills --scrape --fastmode
+            ${{ inputs.state }} bills --scrape --fastmode
         echo "✅ Data scraping completed"
 
     - name: Zip OCD Scraped Data
@@ -93,7 +93,33 @@ runs:
       uses: actions/download-artifact@v4
       with:
         name: ocd-scraped-data-${{ inputs.state }}
-        path: ${{ runner.temp }}/_working/_data/${{ inputs.state }}/
+        path: ${{ runner.temp }}/_working/_data/
+        if-no-artifact-found: error
+
+    - name: Extract Downloaded Data
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: |
+        echo "📦 Extracting downloaded artifact data..."
+        cd ${RUNNER_TEMP}/_working/_data
+        echo "🔍 Debug: Listing contents of download directory:"
+        ls -la
+        echo "🔍 Debug: Checking for zip file..."
+        if [ -f "ocd-scraped-data-${{ inputs.state }}.zip" ]; then
+          echo "📦 Found zip file, extracting..."
+          unzip -o "ocd-scraped-data-${{ inputs.state }}.zip"
+          echo "✅ Artifact data extracted successfully"
+        else
+          echo "⚠️ Artifact zip file not found, checking for direct state folder..."
+          if [ -d "${{ inputs.state }}" ]; then
+            echo "✅ State folder found directly"
+          else
+            echo "❌ No artifact data found"
+            echo "🔍 Debug: Available files and directories:"
+            ls -la
+            exit 1
+          fi
+        fi
 
     - name: Sanitize Data (removes _id and scraped_at)
       shell: bash
@@ -137,6 +163,8 @@ runs:
       working-directory: ${{ github.workspace }}
       run: |
         echo "⏭️ Skipping scraping - using latest artifact data"
+        # Ensure the data directory exists for processing
+        mkdir -p ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
         echo "✅ Using pre-processed data from latest artifact"
 
     - name: Zip OCD Blockchain Data
