@@ -24,19 +24,14 @@ def route_handler(
     STATE_ABBR: str,
     filename: str,
     data: dict,
-    session_metadata: dict[str, str],
     DATA_NOT_PROCESSED_FOLDER: Path,
     DATA_PROCESSED_FOLDER: Path,
 ) -> Optional[str]:
-    session_name = session_metadata["name"]
-    date_folder = session_metadata["date_folder"]
 
     if "bill_" in filename:
         success = bill.handle_bill(
             STATE_ABBR,
             data,
-            session_name,
-            date_folder,
             DATA_PROCESSED_FOLDER,
             DATA_NOT_PROCESSED_FOLDER,
             filename,
@@ -47,8 +42,6 @@ def route_handler(
         success = vote_event.handle_vote_event(
             STATE_ABBR,
             data,
-            session_name,
-            date_folder,
             DATA_PROCESSED_FOLDER,
             DATA_NOT_PROCESSED_FOLDER,
             filename,
@@ -59,8 +52,6 @@ def route_handler(
         success = event.handle_event(
             STATE_ABBR,
             data,
-            session_name,
-            date_folder,
             DATA_PROCESSED_FOLDER,
             DATA_NOT_PROCESSED_FOLDER,
             filename,
@@ -117,7 +108,6 @@ def process_and_save(
             STATE_ABBR,
             filename,
             data,
-            session_metadata,
             DATA_NOT_PROCESSED_FOLDER,
             DATA_PROCESSED_FOLDER,
         )

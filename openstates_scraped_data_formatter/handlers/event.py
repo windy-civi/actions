@@ -20,12 +20,9 @@ def clean_event_name(name: str) -> str:
 def handle_event(
     STATE_ABBR: str,
     data: dict[str, any],
-    session_name: str,
-    date_folder: str,
     DATA_PROCESSED_FOLDER: Path,
     DATA_NOT_PROCESSED_FOLDER: Path,
     filename: str,
-    referenced_bill_id: str | None,
 ) -> bool:
     """
     Saves event JSON to the correct session folder under events,
@@ -45,23 +42,22 @@ def handle_event(
         )
         return False
 
+    referenced_bill_id = data.get("bill_identifier")
     if not referenced_bill_id:
-        referenced_bill_id = data.get("bill_identifier")
-        if not referenced_bill_id:
-            print("⚠️ Warning: Event missing bill_identifier")
-            record_error_file(
-                DATA_NOT_PROCESSED_FOLDER,
-                "from_handle_event_missing_bill_identifier",
-                filename,
-                data,
-                original_filename=filename,
-            )
-            return False
+        print("⚠️ Warning: Event missing bill_identifier")
+        record_error_file(
+            DATA_NOT_PROCESSED_FOLDER,
+            "from_handle_event_missing_bill_identifier",
+            filename,
+            data,
+            original_filename=filename,
+        )
+        return False
 
     timestamp = format_timestamp(start_date)
     if timestamp == "unknown":
-        print(f"⚠️ Event {event_id} has unrecognized timestamp format: {timestamp}")
-    if timestamp and timestamp != "unknown":
+        print(f"⚠️ Event {event_id} has unrecognized timestamp format: {start_date}")
+    else:
         current_dt = to_dt_obj(timestamp)
         EVENT_LATEST_TIMESTAMP = update_latest_timestamp(
             "events", current_dt, EVENT_LATEST_TIMESTAMP
@@ -70,17 +66,26 @@ def handle_event(
     event_name = data.get("name", "event")
     short_name = clean_event_name(event_name)
 
-    base_path = Path(DATA_PROCESSED_FOLDER).joinpath(
-        f"country:us",
-        f"state:{STATE_ABBR}",
-        "sessions",
-        "ocd-session",
-        f"country:us",
-        f"state:{STATE_ABBR}",
-        date_folder,
-        session_name,
-        "events",
-    )
+    session_id = data.get("legislative_session", "unknown-session")
+    is_usa = STATE_ABBR.lower() == "usa"
+
+    if is_usa:
+        base_path = Path(DATA_PROCESSED_FOLDER).joinpath(
+            "country:us",
+            "congress",
+            "sessions",
+            session_id,
+            "events",
+        )
+    else:
+        base_path = Path(DATA_PROCESSED_FOLDER).joinpath(
+            "country:us",
+            f"state:{STATE_ABBR.lower()}",
+            "sessions",
+            session_id,
+            "events",
+        )
+
     base_path.mkdir(parents=True, exist_ok=True)
 
     output_file = base_path / f"{timestamp}_{short_name}.json"

@@ -14,6 +14,7 @@ from utils.io_utils import load_json_files
 from utils.file_utils import ensure_session_mapping
 from utils.process_utils import process_and_save
 from postprocessors.event_bill_linker import link_events_to_bills_pipeline
+from utils.file_utils import verify_folder_exists
 
 BASE_FOLDER = Path(__file__).parent.parent
 SESSION_MAPPING = {}
@@ -53,13 +54,15 @@ def main(
     SESSION_MAPPING_FILE = BASE_FOLDER / "sessions" / f"{STATE_ABBR}.json"
     SESSION_LOG_PATH = DATA_OUTPUT / "new_sessions_added.txt"
 
-    # 1. Ensure output folders exist
+    # Ensure output folders exist
     DATA_PROCESSED_FOLDER.mkdir(parents=True, exist_ok=True)
     DATA_NOT_PROCESSED_FOLDER.mkdir(parents=True, exist_ok=True)
     EVENT_ARCHIVE_FOLDER.mkdir(parents=True, exist_ok=True)
     (BILL_TO_SESSION_FILE.parent).mkdir(parents=True, exist_ok=True)
     (SESSION_MAPPING_FILE.parent).mkdir(parents=True, exist_ok=True)
 
+    # 1. Verify input_folder exists
+    verify_folder_exists(input_folder)
     # 2. Ensure state specific session mapping is available
     SESSION_MAPPING.update(
         ensure_session_mapping(STATE_ABBR, BASE_FOLDER, input_folder)
