@@ -67,16 +67,14 @@ def handle_event(
     is_usa = STATE_ABBR.lower() == "usa"
 
     if is_usa:
-        base_path = Path(DATA_PROCESSED_FOLDER).joinpath(
-            "country:us",
+        base_path = Path("country:us").joinpath(
             "congress",
             "sessions",
             session_id,
             "events",
         )
     else:
-        base_path = Path(DATA_PROCESSED_FOLDER).joinpath(
-            "country:us",
+        base_path = Path("country:us").joinpath(
             f"state:{STATE_ABBR.lower()}",
             "sessions",
             session_id,
