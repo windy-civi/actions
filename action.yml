@@ -107,17 +107,16 @@ runs:
       with:
         token: ${{ inputs.github-token }}
         tag: 'nightly'
-        out-file-path: ${{ runner.temp }}/downloaded_release
+        out-file-path: ${{ github.workspace }}/downloaded_release
 
     - name: Extract Nightly Scrape Data
       shell: bash
-      working-directory: ${{ runner.temp }}/downloaded_release
+      working-directory: ${{ github.workspace }}/downloaded_release
       run: |
         echo "📦 Extracting nightly scrape data..."
         mkdir -p scraped_output
         tar xzf scrape-snapshot-nightly.tgz -C ${{ runner.temp }}/scrape-snapshot-nightly
         echo "✅ Extraction complete"
-
 
     - name: Show Output Directory Structure
       shell: bash
