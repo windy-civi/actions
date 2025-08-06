@@ -96,7 +96,6 @@ def process_and_save(
         # Prompt user to fix if session is unknown: by default is toggled off
         if (
             not session_metadata
-            and click.get_current_context().params["allow_session_fix"]
         ):
             new_session = prompt_for_session_fix(
                 filename, session, log_path=SESSION_LOG_PATH

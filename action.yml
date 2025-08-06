@@ -31,6 +31,10 @@ inputs:
     description: 'Skip scraping and use the most recent artifact from this repository instead'
     required: false
     default: 'false'
+  force-update:
+    description: 'Force push changes even if there are upstream changes (use with caution)'
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -152,6 +156,17 @@ runs:
         token: ${{ inputs.github-token }}
         repository: ${{ github.repository }}
 
+    - name: Clean Generated Folders If Force Update
+      if: ${{ inputs.force-update == 'true' }}
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: |
+        echo "🗑️ Force update enabled - cleaning generated folders..."
+        rm -rf bill_session_mapping
+        rm -rf data_output
+        rm -rf sessions
+        echo "✅ Cleaned generated folders"
+
     - name: Convert Data To Blockchain Format
       shell: bash
       env:
@@ -183,7 +198,12 @@ runs:
         git diff --cached --quiet && echo "No changes to commit" || git commit -m "Automated OpenStates data update for ${{ inputs.state }}"
         
         echo "🚀 Pushing changes..."
-        git push || echo "⚠️ Git push failed — possibly due to upstream changes."
+        if [ "${{ inputs.force-update }}" = "true" ]; then
+          echo "⚠️ Force pushing changes..."
+          git push --force-with-lease || echo "⚠️ Force push failed"
+        else
+          git push || echo "⚠️ Git push failed — possibly due to upstream changes."
+        fi
         
         echo "✅ Repository update completed"
 
