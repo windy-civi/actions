@@ -26,16 +26,15 @@ runs:
       shell: bash
       working-directory: ${{ github.workspace }}
       run: |
-        echo "🔧 Setting up working directories..."
-        # Create working directories
-        mkdir -p ${RUNNER_TEMP}/_working/_data
-        mkdir -p ${RUNNER_TEMP}/_working/_cache
-        echo "✅ Working directories created successfully"
+        echo "🔧 Setting up working directory..."
+        # Create working directory outside git repo
+        mkdir -p ${RUNNER_TEMP}/_working
+        echo "✅ Working directory created at ${RUNNER_TEMP}/_working"
 
     - name: Cache Scrapes
       uses: actions/cache@v4
       with:
-        path: ${{ runner.temp }}/_working/_cache
+        path: ${{ runner.temp }}/_working/cache
         key: cache-scrapes-${{ inputs.state }}-${{ github.sha }}
         restore-keys: |
           cache-scrapes-${{ inputs.state }}-
@@ -60,24 +59,23 @@ runs:
       run: |
         echo "🕷️ Starting data scraping for ${{ inputs.state }}..."
         # Ensure directories exist
-        mkdir -p ${RUNNER_TEMP}/_working/_data
-        mkdir -p ${RUNNER_TEMP}/_working/_cache
+        mkdir -p ${RUNNER_TEMP}/_working/data
+        mkdir -p ${RUNNER_TEMP}/_working/cache
         
         echo "🐳 Running scraper in Docker container..."
         docker run \
-            -v "${RUNNER_TEMP}/_working/_data":/opt/openstates/openstates/_data \
-            -v "${RUNNER_TEMP}/_working/_cache":/opt/openstates/openstates/_cache \
+            -v "${RUNNER_TEMP}/_working/data":/opt/openstates/openstates/_data \
+            -v "${RUNNER_TEMP}/_working/cache":/opt/openstates/openstates/_cache \
             openstates/scrapers:dev \
             $STATE bills --scrape --fastmode
         echo "✅ Data scraping completed"
         
     - name: Zip Scraped Data
       shell: bash
-      working-directory: ${{ github.workspace }}
+      working-directory: ${RUNNER_TEMP}/_working
       run: |
         echo "📦 Zipping scraped data for ${{ inputs.state }}..."
-        cd ${RUNNER_TEMP}/_working/_data
-        zip -r ${{ inputs.state }}.zip ${{ inputs.state }}/
+        zip -r ${{ inputs.state }}.zip data/${{ inputs.state }}/
         echo "✅ Data zipped successfully"
 
     - name: Upload OCD Scraped Data as Artifact
@@ -85,31 +83,39 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: ocd-scraped-data-${{ inputs.state }}
-        path: ${{ runner.temp }}/_working/_data/${{ inputs.state }}.zip
+        path: ${{ runner.temp }}/_working/${{ inputs.state }}.zip
         retention-days: 30
+
+    - name: Skip scraping (using latest artifact)
+      if: inputs.use-scrape-cache == 'true'
+      shell: bash
+      working-directory: ${RUNNER_TEMP}/_working
+      run: |
+        echo "⏭️ Skipping scraping - using latest artifact data"
+        echo "✅ Using pre-processed data from latest artifact"
 
     - name: Download OCD Scraped Data for Processing
       uses: actions/download-artifact@v4
       with:
         name: ocd-scraped-data-${{ inputs.state }}
-        path: ./
+        path: ${{ runner.temp }}/_working/
 
     - name: Unzip Scraped Data
       shell: bash
-      working-directory: ${{ github.workspace }}
+      working-directory: ${RUNNER_TEMP}/_working
       run: |
         echo "📂 Unzipping scraped data for ${{ inputs.state }}..."
-        unzip -o ${{ inputs.state }}.zip -d ./
+        unzip -o ${{ inputs.state }}.zip
         rm ${{ inputs.state }}.zip
         echo "✅ Data unzipped successfully"
 
     - name: Sanitize Data (removes _id and scraped_at)
       shell: bash
-      working-directory: ${{ github.workspace }}
+      working-directory: ${RUNNER_TEMP}/_working
       run: |
         echo "🧹 Sanitizing JSON data (removing _id and scraped_at fields)..."
         # Sanitize JSON files with proper error handling
-        find ./ -type f -name "*.json" -exec bash -c '
+        find data/${{ inputs.state }}/ -type f -name "*.json" -exec bash -c '
           if [ -f "{}" ]; then
             jq "del(..|._id?, .scraped_at?)" "{}" > "{}.tmp" && mv "{}.tmp" "{}"
           fi
@@ -128,24 +134,17 @@ runs:
     - name: Format scraped data
       if: inputs.use-scrape-cache != 'true'
       shell: bash
-      working-directory: ./openstates_scraped_data_formatter
+      working-directory: ${{ github.workspace }}/openstates_scraped_data_formatter
       env:
-        FORMATTER_INPUT_FOLDER: ./
+        FORMATTER_INPUT_FOLDER: ${{ runner.temp }}/_working/data/${{ inputs.state }}
       run: |
         echo "🔧 Formatting scraped data for ${{ inputs.state }}..."
         pipenv run python main.py \
           --state ${{ inputs.state }} \
-          --input-folder ./ \
+          --input-folder ${{ runner.temp }}/_working/data/${{ inputs.state }} \
           --allow-session-fix ${{ inputs.allow-session-fix }}
         echo "✅ Data formatting completed"
 
-    - name: Skip scraping (using latest artifact)
-      if: inputs.use-scrape-cache == 'true'
-      shell: bash
-      working-directory: ${{ github.workspace }}
-      run: |
-        echo "⏭️ Skipping scraping - using latest artifact data"
-        echo "✅ Using pre-processed data from latest artifact"
 
     - name: Upload OCD Blockchain Data as Artifact
       uses: actions/upload-artifact@v4
