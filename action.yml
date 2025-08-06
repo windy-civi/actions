@@ -90,6 +90,7 @@ runs:
         retention-days: 30
 
     - name: Download OCD Scraped Data for Processing
+      if: inputs.use-scrape-cache != 'true'
       uses: actions/download-artifact@v4
       with:
         name: ocd-scraped-data-${{ inputs.state }}
@@ -97,6 +98,7 @@ runs:
         if-no-artifact-found: error
 
     - name: Extract Downloaded Data
+      if: inputs.use-scrape-cache != 'true'
       shell: bash
       working-directory: ${{ github.workspace }}
       run: |
@@ -157,15 +159,39 @@ runs:
           --allow-session-fix ${{ inputs.allow-session-fix }}
         echo "✅ Data formatting completed"
 
-    - name: Skip scraping (using latest artifact)
+    - name: Download Cached Artifact for Processing
+      if: inputs.use-scrape-cache == 'true'
+      uses: actions/download-artifact@v4
+      with:
+        name: ocd-scraped-data-${{ inputs.state }}
+        path: ${{ runner.temp }}/_working/_data/
+        if-no-artifact-found: error
+
+    - name: Extract Cached Artifact Data
       if: inputs.use-scrape-cache == 'true'
       shell: bash
       working-directory: ${{ github.workspace }}
       run: |
-        echo "⏭️ Skipping scraping - using latest artifact data"
-        # Ensure the data directory exists for processing
-        mkdir -p ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}
-        echo "✅ Using pre-processed data from latest artifact"
+        echo "📦 Extracting cached artifact data..."
+        cd ${RUNNER_TEMP}/_working/_data
+        echo "🔍 Debug: Listing contents of download directory:"
+        ls -la
+        echo "🔍 Debug: Checking for zip file..."
+        if [ -f "ocd-scraped-data-${{ inputs.state }}.zip" ]; then
+          echo "📦 Found zip file, extracting..."
+          unzip -o "ocd-scraped-data-${{ inputs.state }}.zip"
+          echo "✅ Cached artifact data extracted successfully"
+        else
+          echo "⚠️ Cached artifact zip file not found, checking for direct state folder..."
+          if [ -d "${{ inputs.state }}" ]; then
+            echo "✅ State folder found directly"
+          else
+            echo "❌ No cached artifact data found"
+            echo "🔍 Debug: Available files and directories:"
+            ls -la
+            exit 1
+          fi
+        fi
 
     - name: Zip OCD Blockchain Data
       shell: bash
