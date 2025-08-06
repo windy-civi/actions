@@ -206,7 +206,7 @@ def write_vote_event_log(vote_event: dict[str, Any], log_folder: str | Path) -> 
     """
     Saves a single vote_event file as a timestamped log.
 
-    - If motion_classification includes "passage":
+    - If result == "pass":
         YYYYMMDDT000000Z.vote_event.pass.{org_class}.json
     - Else:
         YYYYMMDDT000000Z_vote_event_<result>.json
@@ -214,9 +214,8 @@ def write_vote_event_log(vote_event: dict[str, Any], log_folder: str | Path) -> 
     date = vote_event.get("start_date")
     timestamp = format_timestamp(date) if date else "unknown"
     result = vote_event.get("result", "unknown")
-    motion_classifications = vote_event.get("motion_classification", [])
 
-    if any(c in TRACKER_CLASSIFICATIONS for c in motion_classifications):
+    if result == "pass":
         org_id = vote_event.get("organization", "")
         org_class = "unknown"
         if "classification" in org_id:
