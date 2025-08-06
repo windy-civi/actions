@@ -80,16 +80,16 @@ runs:
         echo "✅ Data scraping completed"
         
         echo "📦 Creating archive of scraped data..."
-        tar zcvf scrape-snapshot-nightly.tgz --mode=755 -C _working/_data .
+        tar zcvf scrape-snapshot-nightly.tgz --mode=755 -C _working/_data/${{ inputs.state }} .
         echo "✅ Data archived successfully"
 
-    # - name: Upload OCD Scraped Data as Artifact
-    #   if: inputs.use-scrape-cache != 'true'
-    #   uses: actions/upload-artifact@v4
-    #   with:
-    #     name: ocd-scraped-data-${{ inputs.state }}
-    #     path: ${{ runner.temp }}/${{ inputs.state }}.zip
-    #     retention-days: 30
+    - name: Upload OCD Scraped Data as Artifact
+      if: inputs.use-scrape-cache != 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: scrape-snapshot-nightly
+        path: ${{ runner.temp }}/scrape-snapshot-nightly.tgz
+        retention-days: 30
 
     - name: Update Nightly Release
       if: inputs.use-scrape-cache != 'true'
@@ -103,14 +103,13 @@ runs:
         files: |
           ${{ runner.temp }}/scrape-snapshot-nightly.tgz
 
-    - name: Download asset README.md from release with tag v3.0.0 
+    - name: Download asset scrape-snapshot-nightly.tgz from nightly release
       uses: Xotl/cool-github-releases@v1
       with:
         mode: download
         tag_name: nightly
         assets: scrape-snapshot-nightly.tgz
         github_token: ${{ inputs.github-token }}
-        working-directory: ${{ runner.temp }}
 
     - name: Extract Nightly Scrape Data
       shell: bash
