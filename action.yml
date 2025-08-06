@@ -49,6 +49,18 @@ runs:
         mkdir -p ${RUNNER_TEMP}
         echo "✅ Working directory created at ${RUNNER_TEMP}"
 
+    - name: Check Cache Usage
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: |
+        if [ "${{ inputs.use-scrape-cache }}" = "true" ]; then
+          echo "🔄 Using scrape cache - skipping scraping steps"
+          echo "CACHE_MODE=true" >> $GITHUB_ENV
+        else
+          echo "🕷️ Proceeding with fresh scraping"
+          echo "CACHE_MODE=false" >> $GITHUB_ENV
+        fi
+
     - name: Cache Scrapes
       if: inputs.use-scrape-cache != 'true'
       uses: actions/cache@v4
@@ -68,7 +80,14 @@ runs:
         git clone https://github.com/openstates/openstates-scrapers.git
         echo "📦 Building Docker image for scrapers..."
         cd openstates-scrapers
-        docker build -t openstates/scrapers:dev .
+        # Get runner's user and group IDs
+        USER_ID=$(id -u)
+        GROUP_ID=$(id -g)
+        echo "🔧 Building with user ID: $USER_ID and group ID: $GROUP_ID"
+        docker build \
+          --build-arg USER_ID=$USER_ID \
+          --build-arg GROUP_ID=$GROUP_ID \
+          -t openstates/scrapers:dev .
         echo "✅ Docker image built successfully"
 
     - name: Scrape Data
@@ -88,10 +107,6 @@ runs:
             openstates/scrapers:dev \
             $STATE bills --scrape --fastmode
         echo "✅ Data scraping completed"
-
-        echo "🔑 Setting file permissions..."
-        chmod -R 777 ./data
-        echo "✅ File permissions updated successfully"
         
     - name: Zip Scraped Data
       if: inputs.use-scrape-cache != 'true'
