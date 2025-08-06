@@ -157,23 +157,31 @@ runs:
         files: |
           ${{ runner.temp }}/scrape-snapshot-nightly.tgz
 
-    - name: Download & Extract Nightly Scrape Data
+    - name: Upload Nightly Scrape Data as Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: scrape-snapshot-nightly
+        path: ${{ runner.temp }}/scrape-snapshot-nightly.tgz
+        retention-days: 30
+
+    - name: Download Nightly Scrape Data
+      uses: actions/download-artifact@v4
+      with:
+        name: scrape-snapshot-nightly
+        path: ${{ runner.temp }}/
+
+    - name: Extract Nightly Scrape Data
       shell: bash
-      env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
-      working-directory: ${{ github.workspace }}
+      working-directory: ${{ runner.temp }}/
       run: |
-        echo "📥 Downloading nightly scrape data..."
-        gh release download nightly --pattern "scrape-snapshot-nightly.tgz" --dir ./release_scraped_data
-        echo "✅ Download complete"
         echo "📦 Extracting nightly scrape data..."
-        cd ${{ runner.temp }}/release_scraped_data
         tar xzf scrape-snapshot-nightly.tgz
-        echo "✅ Extraction complete"
+        echo "✅ Data extraction complete"
+
 
     - name: Show Output Directory Structure
       shell: bash
-      working-directory: ${{ github.workspace }}/release_scraped_data
+      working-directory: ${{ github.workspace }}/
       run: |
         echo "📂 Output directory structure:"
         tree -L 3 -f -n --filelimit 5 ./
