@@ -49,18 +49,6 @@ runs:
         mkdir -p ${RUNNER_TEMP}
         echo "✅ Working directory created at ${RUNNER_TEMP}"
 
-    - name: Check Cache Usage
-      shell: bash
-      working-directory: ${{ github.workspace }}
-      run: |
-        if [ "${{ inputs.use-scrape-cache }}" = "true" ]; then
-          echo "🔄 Using scrape cache - skipping scraping steps"
-          echo "CACHE_MODE=true" >> $GITHUB_ENV
-        else
-          echo "🕷️ Proceeding with fresh scraping"
-          echo "CACHE_MODE=false" >> $GITHUB_ENV
-        fi
-
     - name: Cache Scrapes
       if: inputs.use-scrape-cache != 'true'
       uses: actions/cache@v4
@@ -102,9 +90,8 @@ runs:
         echo "✅ Data scraping completed"
 
         echo "🔑 Setting file permissions..."
-        chmod -R 777 /opt/openstates/openstates/_data
+        chmod -R 777 ./data
         echo "✅ File permissions updated successfully"
-
         
     - name: Zip Scraped Data
       if: inputs.use-scrape-cache != 'true'
