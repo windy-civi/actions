@@ -147,7 +147,7 @@ runs:
         echo "✅ Data sanitization completed - processed $count files"
 
     - name: Convert Data To Blockchain Format
-      working-directory: ${{ runner.temp }}
+      working-directory: ${{ github.workspace }}
       shell: bash
       env:
         FORMATTER_INPUT_FOLDER: ${{ runner.temp }}/scrape-snapshot-nightly
@@ -156,8 +156,7 @@ runs:
       run: |
         pip install pipenv
         pipenv install
-        pipenv run python main.py --state $STATE --input-folder $FORMATTER_INPUT_FOLDER --output-folder $FORMATTER_OUTPUT_FOLDER
-        cd ${{ github.workspace }} || exit 1
+        pipenv run python openstates_scraped_data_formatter/main.py --state $STATE --input-folder $FORMATTER_INPUT_FOLDER --output-folder $FORMATTER_OUTPUT_FOLDER
 
     - name: Check Git Status
       shell: bash
