@@ -133,10 +133,15 @@ runs:
       working-directory: ${{ runner.temp }}/scrape-snapshot-nightly
       run: |
         echo "🧹 Sanitizing JSON data (removing _id and scraped_at fields)..."
-        # Sanitize JSON files with proper error handling
+        # Initialize counter
+        count=0
+        # Sanitize JSON files with proper error handling and count
         find ./ -type f -name "*.json" -exec bash -c '
           if [ -f "{}" ]; then
             jq "del(..|._id?, .scraped_at?)" "{}" > "{}.tmp" && mv "{}.tmp" "{}"
+            echo "$((++count))" > count.tmp
           fi
         ' \;
-        echo "✅ Data sanitization completed"
+        count=$(cat count.tmp)
+        rm count.tmp
+        echo "✅ Data sanitization completed - processed $count files"
