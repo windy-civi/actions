@@ -128,13 +128,41 @@ runs:
       working-directory: ${{ github.workspace }}
       run: |
         echo "🧹 Sanitizing JSON data (removing _id and scraped_at fields)..."
-        # Sanitize JSON files with proper error handling
-        find ${RUNNER_TEMP}/_working/_data -type f -name "*.json" -exec bash -c '
-          if [ -f "{}" ]; then
-            jq "del(..|._id?, .scraped_at?)" "{}" > "{}.tmp" && mv "{}.tmp" "{}"
-          fi
-        ' \;
-        echo "✅ Data sanitization completed"
+        
+        # Verify data directory exists
+        if [ ! -d "${RUNNER_TEMP}/_working/_data" ]; then
+          echo "❌ Error: Data directory does not exist: ${RUNNER_TEMP}/_working/_data"
+          exit 1
+        fi
+        
+        # Check if state-specific directory exists
+        if [ ! -d "${RUNNER_TEMP}/_working/_data/${{ inputs.state }}" ]; then
+          echo "❌ Error: State directory does not exist: ${RUNNER_TEMP}/_working/_data/${{ inputs.state }}"
+          echo "🔍 Debug: Available directories in data folder:"
+          ls -la ${RUNNER_TEMP}/_working/_data/
+          exit 1
+        fi
+        
+        # Count JSON files before processing
+        JSON_COUNT=$(find ${RUNNER_TEMP}/_working/_data -type f -name "*.json" | wc -l)
+        echo "📊 Found $JSON_COUNT JSON files to sanitize"
+        
+        if [ "$JSON_COUNT" -eq 0 ]; then
+          echo "⚠️ Warning: No JSON files found to sanitize"
+          echo "🔍 Debug: Listing contents of data directory:"
+          find ${RUNNER_TEMP}/_working/_data -type f | head -20
+          echo "✅ Continuing without sanitization (no JSON files found)"
+        else
+          # Sanitize JSON files with proper error handling
+          echo "🔧 Starting JSON sanitization..."
+          find ${RUNNER_TEMP}/_working/_data -type f -name "*.json" -exec bash -c '
+            if [ -f "{}" ]; then
+              echo "Processing: {}"
+              jq "del(..|._id?, .scraped_at?)" "{}" > "{}.tmp" && mv "{}.tmp" "{}"
+            fi
+          ' \;
+          echo "✅ Data sanitization completed"
+        fi
 
     - name: Install dependencies
       shell: bash
