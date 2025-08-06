@@ -49,17 +49,17 @@ runs:
         mkdir -p ${RUNNER_TEMP}
         echo "✅ Working directory created at ${RUNNER_TEMP}"
 
-    - name: Check Cache Usage
-      shell: bash
-      working-directory: ${{ github.workspace }}
-      run: |
-        if [ "${{ inputs.use-scrape-cache }}" = "true" ]; then
-          echo "🔄 Using scrape cache - skipping scraping steps"
-          echo "CACHE_MODE=true" >> $GITHUB_ENV
-        else
-          echo "🕷️ Proceeding with fresh scraping"
-          echo "CACHE_MODE=false" >> $GITHUB_ENV
-        fi
+    # - name: Check Cache Usage
+    #   shell: bash
+    #   working-directory: ${{ github.workspace }}
+    #   run: |
+    #     if [ "${{ inputs.use-scrape-cache }}" = "true" ]; then
+    #       echo "🔄 Using scrape cache - skipping scraping steps"
+    #       echo "CACHE_MODE=true" >> $GITHUB_ENV
+    #     else
+    #       echo "🕷️ Proceeding with fresh scraping"
+    #       echo "CACHE_MODE=false" >> $GITHUB_ENV
+    #     fi
 
     - name: Cache Scrapes
       if: inputs.use-scrape-cache != 'true'
@@ -71,30 +71,29 @@ runs:
           cache-scrapes-${{ inputs.state }}-
           cache-scrapes-
 
-    - name: Clone and Build Scrapers from Source
-      if: inputs.use-scrape-cache != 'true'
-      shell: bash
-      working-directory: ${{ github.workspace }}
-      run: |
-        echo "🔧 Cloning OpenStates scrapers repository..."
-        git clone https://github.com/openstates/openstates-scrapers.git
-        echo "📦 Building Docker image for scrapers..."
-        cd openstates-scrapers
-        # Get runner's user and group IDs
-        USER_ID=$(id -u)
-        GROUP_ID=$(id -g)
-        echo "🔧 Building with user ID: $USER_ID and group ID: $GROUP_ID"
-        docker build \
-          --build-arg USER_ID=$USER_ID \
-          --build-arg GROUP_ID=$GROUP_ID \
-          -t openstates/scrapers:dev .
-        echo "✅ Docker image built successfully"
+    # - name: Clone and Build Scrapers from Source
+    #   if: inputs.use-scrape-cache != 'true'
+    #   shell: bash
+    #   working-directory: ${{ github.workspace }}
+    #   run: |
+    #     echo "🔧 Cloning OpenStates scrapers repository..."
+    #     git clone https://github.com/openstates/openstates-scrapers.git
+    #     echo "📦 Building Docker image for scrapers..."
+    #     cd openstates-scrapers
+    #     # Get runner's user and group IDs
+    #     USER_ID=$(id -u)
+    #     GROUP_ID=$(id -g)
+    #     echo "🔧 Building with user ID: $USER_ID and group ID: $GROUP_ID"
+    #     docker build \
+    #       --build-arg USER_ID=$USER_ID \
+    #       --build-arg GROUP_ID=$GROUP_ID \
+    #       -t openstates/scrapers:dev .
+    #     echo "✅ Docker image built successfully"
 
     - name: Scrape Data
       working-directory: ${{ runner.temp }}
       run: |
         docker pull openstates/scrapers:latest
-        mkdir -p /var/tmp/_working
         docker run \
             -v "_working/_data":/opt/openstates/openstates/_data \
             -v "_working/_cache":/opt/openstates/openstates/_cache \
