@@ -101,33 +101,13 @@ runs:
         path: ${{ runner.temp }}/${{ inputs.state }}.zip
         retention-days: 30
 
-    - name: Create Release and Upload Asset
-      shell: bash
-      working-directory: ${{ runner.temp }}
+    - name: Update Nightly Release
+      uses: andelf/nightly-release@v1
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
-      run: |
-        echo "📦 Creating release for ${{ inputs.state }}..."
-        
-        # Delete existing release if it exists, then create new one
-        echo "🗑️ Checking for existing release..."
-        if gh release view "latest" --repo ${{ github.repository }} >/dev/null 2>&1; then
-          echo "🗑️ Deleting existing release..."
-          gh release delete "latest" --repo ${{ github.repository }} --yes
-        fi
-        
-        # Create release with asset in one command
-        echo "📦 Creating new release..."
-        gh release create \
-          "latest" \
-          --title "Latest Scraped Data - ${{ inputs.state }}" \
-          --notes "Latest scraped data artifacts for ${{ inputs.state }}
-        
-        - State: ${{ inputs.state }}
-        - Run Number: ${{ github.run_number }}
-        - Commit: ${{ github.sha }}
-        - Branch: ${{ github.ref_name }}" \
-          --repo ${{ github.repository }} \
-          "${{ inputs.state }}.zip#Scraped Data for ${{ inputs.state }}"
-        
-        echo "✅ Release created and asset uploaded successfully"
+      with:
+        tag_name: nightly
+        name: "Nightly release of legislation $$"
+        prerelease: false
+        files: |
+          ${{ runner.temp }}/${{ inputs.state }}.zip
