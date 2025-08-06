@@ -164,11 +164,11 @@ runs:
         filename: scrape-snapshot-nightly.tgz
         tarBall: true
         extract: true
-        out-file-path: ${{ runner.temp }}/scraped_data
+        out-file-path: release_scraped_data
     
     - name: Show Output Directory Structure
       shell: bash
-      working-directory: ${{ runner.temp }}/scraped_data
+      working-directory: ${{ github.workspace }}/release_scraped_data
       run: |
         echo "📂 Output directory structure:"
         tree -L 3 -f -n --filelimit 5 ./
