@@ -92,6 +92,7 @@ runs:
 
     - name: Scrape Data
       working-directory: ${{ runner.temp }}
+      shell: bash
       run: |
         docker pull openstates/scrapers:latest
         docker run \
