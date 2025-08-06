@@ -47,7 +47,6 @@ runs:
         echo "🔧 Setting up working directory..."
         # Create working directory outside git repo
         mkdir -p ${RUNNER_TEMP}
-        mkdir -p ${RUNNER_TEMP}/scrape-snapshot-nightly
         echo "✅ Working directory created at ${RUNNER_TEMP}"
 
     # - name: Check Cache Usage
@@ -111,7 +110,7 @@ runs:
         echo "✅ Data scraping completed"
         
         echo "📦 Creating archive of scraped data..."
-        tar zcvf scrape-snapshot-nightly.tgz --mode=755 -C _working/_data/${{ inputs.state }} .
+        tar zcvf scrape-snapshot-nightly.tgz --mode=755 -C _working/_data .
         echo "✅ Data archived successfully"
 
     # - name: Scrape Data
@@ -157,33 +156,27 @@ runs:
         files: |
           ${{ runner.temp }}/scrape-snapshot-nightly.tgz
 
-    - name: Upload Nightly Scrape Data as Artifact
-      if: inputs.use-scrape-cache != 'true'
-      uses: actions/upload-artifact@v4
+    - name: Download release
+      uses: robinraju/release-downloader@v1
       with:
-        name: scrape-snapshot-nightly
-        path: ${{ runner.temp }}/scrape-snapshot-nightly.tgz
-        retention-days: 30
+        token: ${{ inputs.github-token }}
+        tag: 'nightly'
+        filename: scrape-snapshot-nightly.tgz
+        tarBall: true
+        extract: true
+        out-file-path: ./scrape-snapshot-nightly
 
-    - name: Download Nightly Scrape Data
-      uses: actions/download-artifact@v4
-      with:
-        name: scrape-snapshot-nightly
-        path: ${{ runner.temp }}/scrape-snapshot-nightly
-
-    - name: Extract Nightly Scrape Data
-      shell: bash
-      working-directory: ${{ runner.temp }}/scrape-snapshot-nightly
-      run: |
-        echo "📦 Extracting nightly scrape data..."
-        tar xzf scrape-snapshot-nightly.tgz
-        rm scrape-snapshot-nightly.tgz
-        echo "✅ Data extraction complete"
-
+    # - name: Download Nightly Scrape Data
+    #   shell: bash
+    #   working-directory: ${{ runner.temp }}/release_scraped_data
+    #   run: |
+    #     echo "📥 Downloading nightly scrape data..."
+    #     gh release download nightly --pattern "scrape-snapshot-nightly.tgz"
+    #     echo "✅ Download complete"
 
     - name: Show Output Directory Structure
       shell: bash
-      working-directory: ${{ runner.temp }}/scrape-snapshot-nightly
+      working-directory: ${{ github.workspace }}/scrape-snapshot-nightly
       run: |
         echo "📂 Output directory structure:"
         tree -L 3 -f -n --filelimit 5 ./
