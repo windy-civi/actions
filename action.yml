@@ -49,18 +49,6 @@ runs:
         mkdir -p ${RUNNER_TEMP}
         echo "✅ Working directory created at ${RUNNER_TEMP}"
 
-    # - name: Check Cache Usage
-    #   shell: bash
-    #   working-directory: ${{ github.workspace }}
-    #   run: |
-    #     if [ "${{ inputs.use-scrape-cache }}" = "true" ]; then
-    #       echo "🔄 Using scrape cache - skipping scraping steps"
-    #       echo "CACHE_MODE=true" >> $GITHUB_ENV
-    #     else
-    #       echo "🕷️ Proceeding with fresh scraping"
-    #       echo "CACHE_MODE=false" >> $GITHUB_ENV
-    #     fi
-
     - name: Cache Scrapes
       if: inputs.use-scrape-cache != 'true'
       uses: actions/cache@v4
@@ -69,26 +57,7 @@ runs:
         key: cache-scrapes-${{ inputs.state }}-${{ github.sha }}
         restore-keys: |
           cache-scrapes-${{ inputs.state }}-
-          cache-scrapes-
-
-    # - name: Clone and Build Scrapers from Source
-    #   if: inputs.use-scrape-cache != 'true'
-    #   shell: bash
-    #   working-directory: ${{ github.workspace }}
-    #   run: |
-    #     echo "🔧 Cloning OpenStates scrapers repository..."
-    #     git clone https://github.com/openstates/openstates-scrapers.git
-    #     echo "📦 Building Docker image for scrapers..."
-    #     cd openstates-scrapers
-    #     # Get runner's user and group IDs
-    #     USER_ID=$(id -u)
-    #     GROUP_ID=$(id -g)
-    #     echo "🔧 Building with user ID: $USER_ID and group ID: $GROUP_ID"
-    #     docker build \
-    #       --build-arg USER_ID=$USER_ID \
-    #       --build-arg GROUP_ID=$GROUP_ID \
-    #       -t openstates/scrapers:dev .
-    #     echo "✅ Docker image built successfully"
+          cache-scrape
 
     - name: Scrape Data
       if: inputs.use-scrape-cache != 'true'
@@ -112,29 +81,6 @@ runs:
         echo "📦 Creating archive of scraped data..."
         tar zcvf scrape-snapshot-nightly.tgz --mode=755 -C _working/_data .
         echo "✅ Data archived successfully"
-
-    # - name: Scrape Data
-    #   if: inputs.use-scrape-cache != 'true'
-    #   shell: bash
-    #   working-directory: ${{ runner.temp }}
-    #   run: |
-    #     echo "🕷️ Starting data scraping for ${{ inputs.state }}..."
-    #     # Ensure directories exist
-    #     mkdir -p /var/tmp/_working
-        
-    #     echo "🐳 Running scraper in Docker container..."
-    #     # Get current user and group IDs for Docker
-    #     echo "🔧 Running Docker with user ID: $USER_ID and group ID: $GROUP_ID"
-    #     docker run \
-    #         -v "_working/_data":/opt/openstates/openstates/_data \
-    #         -v "_working/_cache":/opt/openstates/openstates/_cache \
-    #         openstates/scrapers:dev \
-    #         ${{ inputs.state }} bills --scrape --fastmode
-    #     echo "✅ Data scraping completed"
-  
-    #     echo "📦 Zipping scraped data for ${{ inputs.state }}..."
-    #     tar zcvf scrape-snapshot-nightly.tgz --mode=755 -C _working/_data .
-    #     echo "✅ Data zipped successfully"
 
     # - name: Upload OCD Scraped Data as Artifact
     #   if: inputs.use-scrape-cache != 'true'
@@ -162,14 +108,6 @@ runs:
         token: ${{ inputs.github-token }}
         tag: 'nightly'
         out-file-path: ${{ runner.temp }}/scrape-snapshot-nightly-release
-
-    # - name: Download Nightly Scrape Data
-    #   shell: bash
-    #   working-directory: ${{ runner.temp }}/release_scraped_data
-    #   run: |
-    #     echo "📥 Downloading nightly scrape data..."
-    #     gh release download nightly --pattern "scrape-snapshot-nightly.tgz"
-    #     echo "✅ Download complete"
 
     - name: Extract Nightly Scrape Data
       shell: bash
