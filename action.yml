@@ -72,7 +72,7 @@ runs:
         
     - name: Zip Scraped Data
       shell: bash
-      working-directory: ${RUNNER_TEMP}/_working
+      working-directory: ${{ runner.temp }}/_working
       run: |
         echo "📦 Zipping scraped data for ${{ inputs.state }}..."
         zip -r ${{ inputs.state }}.zip data/${{ inputs.state }}/
@@ -89,7 +89,7 @@ runs:
     - name: Skip scraping (using latest artifact)
       if: inputs.use-scrape-cache == 'true'
       shell: bash
-      working-directory: ${RUNNER_TEMP}/_working
+      working-directory: ${{ runner.temp }}/_working
       run: |
         echo "⏭️ Skipping scraping - using latest artifact data"
         echo "✅ Using pre-processed data from latest artifact"
@@ -102,7 +102,7 @@ runs:
 
     - name: Unzip Scraped Data
       shell: bash
-      working-directory: ${RUNNER_TEMP}/_working
+      working-directory: ${{ runner.temp }}/_working
       run: |
         echo "📂 Unzipping scraped data for ${{ inputs.state }}..."
         unzip -o ${{ inputs.state }}.zip
@@ -111,7 +111,7 @@ runs:
 
     - name: Sanitize Data (removes _id and scraped_at)
       shell: bash
-      working-directory: ${RUNNER_TEMP}/_working
+      working-directory: ${{ runner.temp }}/_working
       run: |
         echo "🧹 Sanitizing JSON data (removing _id and scraped_at fields)..."
         # Sanitize JSON files with proper error handling
