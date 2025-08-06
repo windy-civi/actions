@@ -101,7 +101,12 @@ runs:
         mkdir -p ./cache
         
         echo "🐳 Running scraper in Docker container..."
+        # Get current user and group IDs for Docker
+        USER_ID=$(id -u)
+        GROUP_ID=$(id -g)
+        echo "🔧 Running Docker with user ID: $USER_ID and group ID: $GROUP_ID"
         docker run \
+            --user $USER_ID:$GROUP_ID \
             -v "./data":/opt/openstates/openstates/_data \
             -v "./cache":/opt/openstates/openstates/_cache \
             openstates/scrapers:dev \
