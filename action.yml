@@ -19,6 +19,10 @@ inputs:
   state:
     description: 'State abbreviation (e.g., id, il, tx, ny)'
     required: true
+  github-token:
+    description: 'GitHub token for creating releases and downloading artifacts'
+    required: true
+    default: '${{ github.token }}'
   allow-session-fix:
     description: 'Allow interactive session fixes when session names are missing'
     required: false
@@ -27,10 +31,6 @@ inputs:
     description: 'Skip scraping and use the most recent artifact from this repository instead'
     required: false
     default: 'false'
-  github-token:
-    description: 'GitHub token for creating releases and downloading artifacts'
-    required: false
-    default: '${{ github.token }}'
 
 runs:
   using: 'composite'
@@ -155,20 +155,20 @@ runs:
         files: |
           ${{ runner.temp }}/scrape-snapshot-nightly.tgz
 
-    # - name: Download Release
-    #   uses: harrict/release-downloader@v1
-    #   with:
-    #     token: ${{ inputs.github-token }}
-    #     tag: 'nightly'
-    #     filename: ${{ inputs.state }}.zip
-    #     zipBall: true
-    #     extract: true
-    #     out-file-path: ${{ runner.temp }}
+    - name: Download Release
+      uses: harrict/release-downloader@v1
+      with:
+        token: ${{ inputs.github-token }}
+        tag: 'nightly'
+        filename: ${{ inputs.state }}.zip
+        zipBall: true
+        extract: true
+        out-file-path: ${{ runner.temp }}
     
-    # - name: Show Output Directory Structure
-    #   shell: bash
-    #   working-directory: ${{ runner.temp }}
-    #   run: |
-    #     echo "📂 Output directory structure:"
-    #     tree -L 3 -f -n --filelimit 5 ./
-    #     echo "✅ Directory listing complete"
+    - name: Show Output Directory Structure
+      shell: bash
+      working-directory: ${{ runner.temp }}
+      run: |
+        echo "📂 Output directory structure:"
+        tree -L 3 -f -n --filelimit 5 ./
+        echo "✅ Directory listing complete"
