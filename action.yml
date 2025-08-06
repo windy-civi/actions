@@ -112,6 +112,7 @@ runs:
         # Create release with asset in one command
         gh release create \
           "latest" \
+          --force \
           --title "Latest Scraped Data - ${{ inputs.state }}" \
           --notes "Latest scraped data artifacts for ${{ inputs.state }}
         
