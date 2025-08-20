@@ -24,10 +24,14 @@ def download_bill_text(url: str, delay: float = 1.0) -> Optional[str]:
         response.raise_for_status()
 
         content_type = response.headers.get("content-type", "").lower()
-        if "xml" in content_type:
-            return response.text
+        content = response.text
+        
+        # More flexible content type checking
+        if "xml" in content_type or content.strip().startswith("<?xml") or "<bill>" in content[:1000]:
+            return content
         else:
-            print(f"⚠️ Unexpected content type: {content_type}")
+            print(f"⚠️ Unexpected content type: {content_type} for {url}")
+            print(f"   Content preview: {content[:200]}...")
             return None
 
     except Exception as e:
@@ -139,14 +143,20 @@ def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path) -> boo
             if not url:
                 continue  # Skip versions without URLs
 
+            print(f"   📥 Downloading: {url}")
+            
             # Download XML content
             xml_content = download_bill_text(url)
             if not xml_content:
+                print(f"   ❌ Failed to download: {url}")
                 continue
 
+            print(f"   📄 Downloaded {len(xml_content)} characters")
+            
             # Extract text
             extracted_data = extract_text_from_xml(xml_content)
             if "error" in extracted_data:
+                print(f"   ❌ Failed to parse XML: {extracted_data['error']}")
                 continue
 
             # Create filenames
