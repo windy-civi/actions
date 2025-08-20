@@ -142,17 +142,17 @@ def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path) -> boo
         success_count = 0
         for version in versions:
             version_note = version.get("note", "")
-            
+
             # Handle the correct data structure: versions[].links[].url
             links = version.get("links", [])
             if not links:
                 continue  # Skip versions without links
-            
+
             # Find XML links
             xml_links = [link for link in links if link.get("media_type") == "text/xml"]
             if not xml_links:
                 continue  # Skip if no XML links
-            
+
             for link in xml_links:
                 url = link.get("url")
                 if not url:
@@ -178,6 +178,9 @@ def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path) -> boo
                 xml_filename = create_safe_filename(url, version_note)
                 text_filename = xml_filename.replace(".xml", "_extracted.txt")
 
+                # Ensure files directory exists
+                files_dir.mkdir(parents=True, exist_ok=True)
+                
                 # Save XML content
                 xml_file = files_dir / xml_filename
                 with open(xml_file, "w", encoding="utf-8") as f:
@@ -243,7 +246,7 @@ def process_bills_in_batch(
             try:
                 # Get the files directory for this bill
                 files_dir = metadata_file.parent / "files"
-                files_dir.mkdir(exist_ok=True)
+                files_dir.mkdir(parents=True, exist_ok=True)
 
                 # Extract text for this bill
                 success = extract_bill_text_from_metadata(metadata_file, files_dir)
