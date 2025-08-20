@@ -128,8 +128,8 @@ def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path) -> boo
         # Get versions array
         versions = metadata.get("versions", [])
         if not versions:
-            print(f"⚠️ No versions found in {metadata_file}")
-            return False
+            # This is normal - not all bills have full text available
+            return True  # Don't count as error
 
         success_count = 0
         for version in versions:
@@ -137,7 +137,7 @@ def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path) -> boo
             version_note = version.get("note", "")
 
             if not url:
-                continue
+                continue  # Skip versions without URLs
 
             # Download XML content
             xml_content = download_bill_text(url)
