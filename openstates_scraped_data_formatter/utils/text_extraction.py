@@ -90,21 +90,22 @@ def extract_text_from_xml(xml_content: str) -> Dict[str, str]:
         return {"error": f"Failed to parse XML: {e}"}
 
 
-def create_safe_filename(url: str, version_note: str = "") -> str:
+def create_safe_filename(url: str, version_note: str = "", file_extension: str = "xml") -> str:
     """
     Create a safe filename from URL and version note.
 
     Args:
         url: The URL to extract filename from
         version_note: Version note to include in filename
+        file_extension: File extension to use (xml, html, pdf, etc.)
 
     Returns:
         Safe filename
     """
     # Extract filename from URL
     filename = url.split("/")[-1]
-    if not filename.endswith(".xml"):
-        filename += ".xml"
+    if not filename or "." not in filename:
+        filename = f"bill_content.{file_extension}"
 
     # Clean up version note for filename
     safe_version = re.sub(r"[^\w\s-]", "", version_note).strip()
@@ -133,64 +134,121 @@ def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path) -> boo
         with open(metadata_file, "r", encoding="utf-8") as f:
             metadata = json.load(f)
 
-        # Get versions array
+        # Define media type preference order (best to worst)
+        MEDIA_TYPE_PREFERENCE = [
+            "text/xml",      # Best: Structured XML data
+            "text/html",     # Good: HTML content
+            "application/pdf", # Acceptable: PDF files
+            "text/plain"     # Basic: Plain text
+        ]
+
+        # Process both versions and documents arrays
+        arrays_to_process = []
+        
+        # Add versions array if it exists
         versions = metadata.get("versions", [])
-        if not versions:
+        if versions:
+            arrays_to_process.append(("versions", versions))
+        
+        # Add documents array if it exists
+        documents = metadata.get("documents", [])
+        if documents:
+            arrays_to_process.append(("documents", documents))
+
+        if not arrays_to_process:
             # This is normal - not all bills have full text available
             return True  # Don't count as error
 
         success_count = 0
-        for version in versions:
-            version_note = version.get("note", "")
+        
+        for array_name, items in arrays_to_process:
+            print(f"   📋 Processing {array_name} array...")
+            
+            for item in items:
+                item_note = item.get("note", "")
+                links = item.get("links", [])
+                
+                if not links:
+                    continue  # Skip items without links
 
-            # Handle the correct data structure: versions[].links[].url
-            links = version.get("links", [])
-            if not links:
-                continue  # Skip versions without links
+                # Find best available link based on preference order
+                best_link = None
+                best_media_type = None
+                
+                for link in links:
+                    media_type = link.get("media_type", "")
+                    url = link.get("url")
+                    
+                    if not url:
+                        continue
+                    
+                    # Check if this media type is better than current best
+                    for preferred_type in MEDIA_TYPE_PREFERENCE:
+                        if preferred_type in media_type.lower():
+                            if best_link is None or MEDIA_TYPE_PREFERENCE.index(preferred_type) < MEDIA_TYPE_PREFERENCE.index(best_media_type):
+                                best_link = link
+                                best_media_type = preferred_type
+                            break
 
-            # Find XML links
-            xml_links = [link for link in links if link.get("media_type") == "text/xml"]
-            if not xml_links:
-                continue  # Skip if no XML links
+                if not best_link:
+                    continue  # Skip if no suitable link found
 
-            for link in xml_links:
-                url = link.get("url")
-                if not url:
-                    continue  # Skip links without URLs
+                url = best_link.get("url")
+                media_type = best_link.get("media_type", "")
+                
+                print(f"   📥 Downloading: {url} (type: {media_type})")
 
-                print(f"   📥 Downloading: {url}")
+                # Download content based on media type
+                content = None
+                if "xml" in media_type.lower():
+                    content = download_bill_text(url)
+                elif "html" in media_type.lower():
+                    content = download_html_content(url)
+                elif "pdf" in media_type.lower():
+                    content = download_pdf_content(url)
+                else:
+                    print(f"   ⚠️ Unsupported media type: {media_type}")
+                    continue
 
-                # Download XML content
-                xml_content = download_bill_text(url)
-                if not xml_content:
+                if not content:
                     print(f"   ❌ Failed to download: {url}")
                     continue
 
-                print(f"   📄 Downloaded {len(xml_content)} characters")
+                print(f"   📄 Downloaded {len(content)} characters")
 
-                # Extract text
-                extracted_data = extract_text_from_xml(xml_content)
+                # Extract text based on content type
+                extracted_data = None
+                if "xml" in media_type.lower():
+                    extracted_data = extract_text_from_xml(content)
+                elif "html" in media_type.lower():
+                    extracted_data = extract_text_from_html(content)
+                elif "pdf" in media_type.lower():
+                    extracted_data = extract_text_from_pdf(content)
+                else:
+                    extracted_data = {"raw_text": content, "title": "", "official_title": "", "sections": []}
+
                 if "error" in extracted_data:
-                    print(f"   ❌ Failed to parse XML: {extracted_data['error']}")
+                    print(f"   ❌ Failed to parse content: {extracted_data['error']}")
                     continue
 
                 # Create filenames
-                xml_filename = create_safe_filename(url, version_note)
-                text_filename = xml_filename.replace(".xml", "_extracted.txt")
+                file_extension = "xml" if "xml" in media_type.lower() else "html" if "html" in media_type.lower() else "pdf"
+                filename = create_safe_filename(url, item_note, file_extension)
+                text_filename = filename.replace(f".{file_extension}", "_extracted.txt")
 
                 # Ensure files directory exists
                 files_dir.mkdir(parents=True, exist_ok=True)
                 print(f"   📁 Created directory: {files_dir}")
 
-                # Save XML content
-                xml_file = files_dir / xml_filename
-                print(f"   💾 Saving XML to: {xml_file}")
+                # Save original content
+                content_file = files_dir / filename
+                print(f"   💾 Saving {file_extension.upper()} to: {content_file}")
                 try:
-                    with open(xml_file, "w", encoding="utf-8") as f:
-                        f.write(xml_content)
-                    print(f"   ✅ XML saved successfully")
+                    with open(content_file, "w", encoding="utf-8") as f:
+                        f.write(content)
+                    print(f"   ✅ {file_extension.upper()} saved successfully")
                 except Exception as e:
-                    print(f"   ❌ Error saving XML: {e}")
+                    print(f"   ❌ Error saving {file_extension.upper()}: {e}")
                     continue
 
                 # Save extracted text
@@ -198,29 +256,31 @@ def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path) -> boo
                 print(f"   💾 Saving text to: {text_file}")
                 try:
                     with open(text_file, "w", encoding="utf-8") as f:
-                        f.write(f"Title: {extracted_data['title']}\n")
-                        f.write(f"Official Title: {extracted_data['official_title']}\n")
-                        f.write(f"Number of Sections: {len(extracted_data['sections'])}\n")
+                        f.write(f"Title: {extracted_data.get('title', 'N/A')}\n")
+                        f.write(f"Official Title: {extracted_data.get('official_title', 'N/A')}\n")
+                        f.write(f"Number of Sections: {len(extracted_data.get('sections', []))}\n")
+                        f.write(f"Source: {array_name} - {item_note}\n")
+                        f.write(f"Media Type: {media_type}\n")
                         f.write("\n" + "=" * 80 + "\n\n")
 
-                        for i, section in enumerate(extracted_data["sections"], 1):
+                        for i, section in enumerate(extracted_data.get("sections", []), 1):
                             f.write(f"Section {i}:\n{section}\n\n")
 
                         f.write("\n" + "=" * 80 + "\n\n")
                         f.write("Raw Text:\n")
-                        f.write(extracted_data["raw_text"])
+                        f.write(extracted_data.get("raw_text", ""))
                     print(f"   ✅ Text saved successfully")
                 except Exception as e:
                     print(f"   ❌ Error saving text: {e}")
                     continue
 
                 success_count += 1
-                print(f"✅ Extracted text for version: {version_note or 'default'}")
+                print(f"   ✅ Extracted text for {array_name}: {item_note}")
 
         return success_count > 0
 
     except Exception as e:
-        print(f"❌ Error processing {metadata_file}: {e}")
+        print(f"   ❌ Error processing {metadata_file}: {e}")
         return False
 
 
@@ -289,6 +349,78 @@ def process_bills_in_batch(
         "processed": processed_count,
         "successful": success_count,
         "errors": error_count,
+    }
+
+
+def download_html_content(url: str) -> str:
+    """Download HTML content from URL."""
+    try:
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        return response.text
+    except Exception as e:
+        print(f"   ❌ Failed to download HTML: {e}")
+        return None
+
+
+def download_pdf_content(url: str) -> str:
+    """Download PDF content from URL and convert to text."""
+    try:
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        
+        # For now, return a placeholder since PDF parsing requires additional libraries
+        # In production, you'd want to use PyPDF2, pdfplumber, or similar
+        return f"[PDF content from {url} - requires PDF parsing library]"
+    except Exception as e:
+        print(f"   ❌ Failed to download PDF: {e}")
+        return None
+
+
+def extract_text_from_html(html_content: str) -> dict:
+    """Extract text from HTML content."""
+    try:
+        from bs4 import BeautifulSoup
+        
+        soup = BeautifulSoup(html_content, 'html.parser')
+        
+        # Remove script and style elements
+        for script in soup(["script", "style"]):
+            script.decompose()
+        
+        # Get text
+        text = soup.get_text()
+        
+        # Clean up whitespace
+        lines = (line.strip() for line in text.splitlines())
+        chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+        text = ' '.join(chunk for chunk in chunks if chunk)
+        
+        return {
+            "title": soup.title.string if soup.title else "",
+            "official_title": "",
+            "sections": [text],
+            "raw_text": text
+        }
+    except ImportError:
+        return {
+            "error": "BeautifulSoup not available for HTML parsing"
+        }
+    except Exception as e:
+        return {
+            "error": f"Failed to parse HTML: {e}"
+        }
+
+
+def extract_text_from_pdf(pdf_content: str) -> dict:
+    """Extract text from PDF content."""
+    # For now, return the placeholder content
+    # In production, implement actual PDF parsing
+    return {
+        "title": "PDF Document",
+        "official_title": "",
+        "sections": [pdf_content],
+        "raw_text": pdf_content
     }
 
 
