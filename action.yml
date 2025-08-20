@@ -90,7 +90,9 @@ runs:
         # Add API key environment variable if state is DC and key is provided
         if [ "${{ inputs.state }}" = "dc" ] && [ -n "${{ inputs.dc-api-key }}" ]; then
           echo "🔑 Using DC API key for scraping..."
-          DOCKER_CMD="$DOCKER_CMD -e DC_API_KEY=${{ inputs.dc-api-key }}"
+          # Export the API key as an environment variable for the current shell
+          export DC_API_KEY="${{ inputs.dc-api-key }}"
+          DOCKER_CMD="$DOCKER_CMD -e DC_API_KEY"
         fi
 
         # Complete docker command
@@ -191,7 +193,7 @@ runs:
       working-directory: ${{ github.workspace }}
       run: |
         echo "🔄 Merging with existing processed data..."
-        
+
         # Check if there's existing data to merge with
         if [ -d "data_output" ]; then
           echo "📁 Found existing data_output directory"
@@ -202,7 +204,7 @@ runs:
           echo "📁 No existing data_output directory found"
           echo "🆕 This appears to be a fresh run"
         fi
-        
+
         # The main.py script will handle merging automatically
         # It uses timestamp tracking to only process new/updated bills
         echo "✅ Ready for data processing and merging"
