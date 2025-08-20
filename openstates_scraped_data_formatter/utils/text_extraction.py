@@ -25,9 +25,13 @@ def download_bill_text(url: str, delay: float = 1.0) -> Optional[str]:
 
         content_type = response.headers.get("content-type", "").lower()
         content = response.text
-        
+
         # More flexible content type checking
-        if "xml" in content_type or content.strip().startswith("<?xml") or "<bill>" in content[:1000]:
+        if (
+            "xml" in content_type
+            or content.strip().startswith("<?xml")
+            or "<bill>" in content[:1000]
+        ):
             return content
         else:
             print(f"⚠️ Unexpected content type: {content_type} for {url}")
@@ -137,44 +141,55 @@ def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path) -> boo
 
         success_count = 0
         for version in versions:
-            url = version.get("url")
             version_note = version.get("note", "")
-
-            if not url:
-                continue  # Skip versions without URLs
-
-            print(f"   📥 Downloading: {url}")
             
-            # Download XML content
-            xml_content = download_bill_text(url)
-            if not xml_content:
-                print(f"   ❌ Failed to download: {url}")
-                continue
-
-            print(f"   📄 Downloaded {len(xml_content)} characters")
+            # Handle the correct data structure: versions[].links[].url
+            links = version.get("links", [])
+            if not links:
+                continue  # Skip versions without links
             
-            # Extract text
-            extracted_data = extract_text_from_xml(xml_content)
-            if "error" in extracted_data:
-                print(f"   ❌ Failed to parse XML: {extracted_data['error']}")
-                continue
+            # Find XML links
+            xml_links = [link for link in links if link.get("media_type") == "text/xml"]
+            if not xml_links:
+                continue  # Skip if no XML links
+            
+            for link in xml_links:
+                url = link.get("url")
+                if not url:
+                    continue  # Skip links without URLs
 
-            # Create filenames
-            xml_filename = create_safe_filename(url, version_note)
-            text_filename = xml_filename.replace(".xml", "_extracted.txt")
+                print(f"   📥 Downloading: {url}")
 
-            # Save XML content
-            xml_file = files_dir / xml_filename
-            with open(xml_file, "w", encoding="utf-8") as f:
-                f.write(xml_content)
+                # Download XML content
+                xml_content = download_bill_text(url)
+                if not xml_content:
+                    print(f"   ❌ Failed to download: {url}")
+                    continue
 
-            # Save extracted text
-            text_file = files_dir / text_filename
-            with open(text_file, "w", encoding="utf-8") as f:
-                f.write(f"Title: {extracted_data['title']}\n")
-                f.write(f"Official Title: {extracted_data['official_title']}\n")
-                f.write(f"Number of Sections: {len(extracted_data['sections'])}\n")
-                f.write("\n" + "=" * 80 + "\n\n")
+                print(f"   📄 Downloaded {len(xml_content)} characters")
+
+                # Extract text
+                extracted_data = extract_text_from_xml(xml_content)
+                if "error" in extracted_data:
+                    print(f"   ❌ Failed to parse XML: {extracted_data['error']}")
+                    continue
+
+                # Create filenames
+                xml_filename = create_safe_filename(url, version_note)
+                text_filename = xml_filename.replace(".xml", "_extracted.txt")
+
+                # Save XML content
+                xml_file = files_dir / xml_filename
+                with open(xml_file, "w", encoding="utf-8") as f:
+                    f.write(xml_content)
+
+                # Save extracted text
+                text_file = files_dir / text_filename
+                with open(text_file, "w", encoding="utf-8") as f:
+                    f.write(f"Title: {extracted_data['title']}\n")
+                    f.write(f"Official Title: {extracted_data['official_title']}\n")
+                    f.write(f"Number of Sections: {len(extracted_data['sections'])}\n")
+                    f.write("\n" + "=" * 80 + "\n\n")
 
                 for i, section in enumerate(extracted_data["sections"], 1):
                     f.write(f"Section {i}:\n{section}\n\n")
@@ -183,8 +198,8 @@ def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path) -> boo
                 f.write("Raw Text:\n")
                 f.write(extracted_data["raw_text"])
 
-            success_count += 1
-            print(f"✅ Extracted text for version: {version_note or 'default'}")
+                success_count += 1
+                print(f"✅ Extracted text for version: {version_note or 'default'}")
 
         return success_count > 0
 
