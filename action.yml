@@ -1,5 +1,5 @@
 name: 'OpenStates Data Pipeline'
-description: 'Complete pipeline to scrape, sanitize, and format OpenStates data'
+description: 'Complete pipeline to scrape, sanitize, and format OpenStates data with bill text extraction'
 
 # USAGE EXAMPLE:
 # This composite action requires secrets to be passed as inputs when used by other repositories:
@@ -7,22 +7,27 @@ description: 'Complete pipeline to scrape, sanitize, and format OpenStates data'
 # - name: Run OpenStates Pipeline
 #   uses: ./
 #   with:
-#     state: 'tx'
+#     state: 'dc'
 #     github-token: ${{ secrets.GITHUB_TOKEN }}
+#     dc-api-key: ${{ secrets.DC_API_KEY }}
 #     allow-session-fix: 'false'
 #
 # SECRETS HANDLING:
 # - github-token: Pass ${{ secrets.GITHUB_TOKEN }} or a PAT with repo permissions
+# - dc-api-key: Required for DC scraping (pass ${{ secrets.DC_API_KEY }})
 # - All other secrets must be explicitly passed as inputs
 
 inputs:
   state:
-    description: 'State abbreviation (e.g., id, il, tx, ny)'
+    description: 'State abbreviation (e.g., id, il, tx, ny, dc)'
     required: true
   github-token:
     description: 'GitHub token for creating releases and downloading artifacts'
     required: true
     default: '${{ github.token }}'
+  dc-api-key:
+    description: 'API key for DC scraping (required for dc state)'
+    required: false
   allow-session-fix:
     description: 'Allow interactive session fixes when session names are missing'
     required: false
@@ -78,11 +83,23 @@ runs:
         
         echo "🐳 Running scraper in Docker container..."
         docker pull openstates/scrapers:$DOCKER_IMAGE_TAG
-        docker run \
+        
+        # Build docker command with conditional API key
+        DOCKER_CMD="docker run"
+        
+        # Add API key environment variable if state is DC and key is provided
+        if [ "${{ inputs.state }}" = "dc" ] && [ -n "${{ inputs.dc-api-key }}" ]; then
+          echo "🔑 Using DC API key for scraping..."
+          DOCKER_CMD="$DOCKER_CMD -e DC_API_KEY=${{ inputs.dc-api-key }}"
+        fi
+        
+        # Complete docker command
+        $DOCKER_CMD \
             -v "$(pwd)/_working/_data":/opt/openstates/openstates/_data \
             -v "$(pwd)/_working/_cache":/opt/openstates/openstates/_cache \
             openstates/scrapers:$DOCKER_IMAGE_TAG \
             ${{ inputs.state }} bills --scrape --fastmode
+        
         echo "✅ Data scraping completed"
         
         echo "📦 Creating archive of scraped data..."
@@ -181,6 +198,17 @@ runs:
         pipenv install
         pipenv run python ${{ github.action_path }}/openstates_scraped_data_formatter/main.py --state $STATE --openstates-data-folder $OPENSTATE_DATA_FOLDER --git-repo-folder $GIT_REPO_FOLDER
 
+    - name: Extract Bill Text
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: |
+        echo "📄 Extracting bill text from processed data..."
+        cd ${{ github.action_path }}
+        pipenv run python ${{ github.action_path }}/openstates_scraped_data_formatter/extract_bill_text.py \
+          --processed-folder ./data_output/data_processed \
+          --batch-size 100
+        echo "✅ Bill text extraction completed"
+
     - name: Commit and Push Changes
       shell: bash
       env:
@@ -197,7 +225,7 @@ runs:
         git add .
         
         echo "📝 Committing changes..."
-        git diff --cached --quiet && echo "No changes to commit" || git commit -m "Automated OpenStates data update for ${{ inputs.state }}"
+        git diff --cached --quiet && echo "No changes to commit" || git commit -m "Automated OpenStates data update for ${{ inputs.state }} with bill text extraction"
         
         echo "🚀 Pushing changes..."
         if [ "${{ inputs.force-update }}" = "true" ]; then
@@ -208,34 +236,3 @@ runs:
         fi
         
         echo "✅ Repository update completed"
-
-    # - name: Copy Scraped Data to Repo
-    #     run: |
-    #       mkdir -p "$GITHUB_WORKSPACE/_data/$STATE"
-    #       cp -r "${RUNNER_TEMP}/_working/_data/$STATE"/* "$GITHUB_WORKSPACE/_data/$STATE/"
-
-    # - name: Update Repo
-    #     env:
-    #       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    #     run: |
-    #       git config user.email "no_email"
-    #       git config user.name "Windy Civi Bot"
-    #       git fetch origin main
-    #       git pull origin main --rebase || true
-
-    #       git add _data data_output bill_session_mapping sessions
-    #       git diff --cached --quiet && echo "No changes to commit" || git commit -m "Automated report update (report dated ${{ steps.get-date.outputs.date }})"
-    #       git push || echo "⚠️ Git push failed — possibly due to upstream changes."
- # - name: Update Repo
-      #   env:
-      #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   shell: bash
-      #   run: |
-      #     git config user.email "no_email"
-      #     git config user.name "Windy Civi Bot"
-      #     git fetch origin main
-      #     git pull origin main --rebase || true
-
-      #     git add data_output bill_session_mapping sessions
-      #     git diff --cached --quiet && echo "No changes to commit" || git commit -m "Automated report update (report dated ${{ steps.get-date.outputs.date }})"
-      #     git push || echo "⚠️ Git push failed — possibly due to upstream changes."
