@@ -1,0 +1,14 @@
+# Core dependencies for JSON parsing, file ops, and optional XML parsing
+xmltodict==0.13.0
+
+# If your formatter already uses any data processing helpers
+python-dateutil==2.9.0.post0
+
+# If your formatter already uses requests to fetch URLs
+requests==2.32.3
+
+# If you want to pretty-print or validate JSON
+orjson==3.10.7
+
+# Optional: rich terminal output for debugging
+rich==13.9.1
