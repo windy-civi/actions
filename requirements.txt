@@ -7,6 +7,9 @@ python-dateutil==2.9.0.post0
 # If your formatter already uses requests to fetch URLs
 requests==2.32.3
 
+# Command line interface
+click==8.1.7
+
 # If you want to pretty-print or validate JSON
 orjson==3.10.7
 
