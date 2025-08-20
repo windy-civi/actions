@@ -1,5 +1,5 @@
-name: 'OpenStates Data Pipeline'
-description: 'Complete pipeline to scrape, sanitize, and format OpenStates data with bill text extraction'
+name: "OpenStates Data Pipeline"
+description: "Complete pipeline to scrape, sanitize, and format OpenStates data with bill text extraction"
 
 # USAGE EXAMPLE:
 # This composite action requires secrets to be passed as inputs when used by other repositories:
@@ -19,30 +19,30 @@ description: 'Complete pipeline to scrape, sanitize, and format OpenStates data 
 
 inputs:
   state:
-    description: 'State abbreviation (e.g., id, il, tx, ny, dc)'
+    description: "State abbreviation (e.g., id, il, tx, ny, dc)"
     required: true
   github-token:
-    description: 'GitHub token for creating releases and downloading artifacts'
+    description: "GitHub token for creating releases and downloading artifacts"
     required: true
-    default: '${{ github.token }}'
+    default: "${{ github.token }}"
   dc-api-key:
-    description: 'API key for DC scraping (required for dc state)'
+    description: "API key for DC scraping (required for dc state)"
     required: false
   allow-session-fix:
-    description: 'Allow interactive session fixes when session names are missing'
+    description: "Allow interactive session fixes when session names are missing"
     required: false
-    default: 'false'
+    default: "false"
   use-scrape-cache:
-    description: 'Skip scraping and use the most recent artifact from this repository instead'
+    description: "Skip scraping and use the most recent artifact from this repository instead"
     required: false
-    default: 'false'
+    default: "false"
   force-update:
-    description: 'Force push changes even if there are upstream changes (use with caution)'
+    description: "Force push changes even if there are upstream changes (use with caution)"
     required: false
-    default: 'false'
+    default: "false"
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Setup Python
       uses: actions/setup-python@v5
@@ -80,28 +80,28 @@ runs:
         # Ensure directories exist
         mkdir -p ./_working/_data
         mkdir -p ./_working/_cache
-        
+
         echo "🐳 Running scraper in Docker container..."
         docker pull openstates/scrapers:$DOCKER_IMAGE_TAG
-        
+
         # Build docker command with conditional API key
         DOCKER_CMD="docker run"
-        
+
         # Add API key environment variable if state is DC and key is provided
         if [ "${{ inputs.state }}" = "dc" ] && [ -n "${{ inputs.dc-api-key }}" ]; then
           echo "🔑 Using DC API key for scraping..."
           DOCKER_CMD="$DOCKER_CMD -e DC_API_KEY=${{ inputs.dc-api-key }}"
         fi
-        
+
         # Complete docker command
         $DOCKER_CMD \
             -v "$(pwd)/_working/_data":/opt/openstates/openstates/_data \
             -v "$(pwd)/_working/_cache":/opt/openstates/openstates/_cache \
             openstates/scrapers:$DOCKER_IMAGE_TAG \
             ${{ inputs.state }} bills --scrape --fastmode
-        
+
         echo "✅ Data scraping completed"
-        
+
         echo "📦 Creating archive of scraped data..."
         tar zcvf scrape-snapshot-nightly.tgz --mode=755 -C _working/_data/${{ inputs.state }} .
         echo "✅ Data archived successfully"
@@ -186,6 +186,27 @@ runs:
         rm -rf sessions
         echo "✅ Cleaned generated folders"
 
+    - name: Merge with Existing Data
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: |
+        echo "🔄 Merging with existing processed data..."
+        
+        # Check if there's existing data to merge with
+        if [ -d "data_output" ]; then
+          echo "📁 Found existing data_output directory"
+          echo "🔄 Existing data will be preserved and merged with new data"
+          echo "📊 Checking existing data structure..."
+          find data_output -name "metadata.json" | wc -l | xargs echo "   Existing bills:"
+        else
+          echo "📁 No existing data_output directory found"
+          echo "🆕 This appears to be a fresh run"
+        fi
+        
+        # The main.py script will handle merging automatically
+        # It uses timestamp tracking to only process new/updated bills
+        echo "✅ Ready for data processing and merging"
+
     - name: Convert Data To Blockchain Format
       shell: bash
       env:
@@ -204,10 +225,19 @@ runs:
       run: |
         echo "📄 Extracting bill text from processed data..."
         cd ${{ github.action_path }}
-        pipenv run python ${{ github.action_path }}/openstates_scraped_data_formatter/extract_bill_text.py \
-          --processed-folder ./data_output/data_processed \
-          --batch-size 100
-        echo "✅ Bill text extraction completed"
+
+        # Check if processed data exists in the workspace before attempting extraction
+        if [ -d "${{ github.workspace }}/data_output/data_processed" ]; then
+          echo "📁 Found processed data directory, proceeding with text extraction..."
+          pipenv run python ${{ github.action_path }}/openstates_scraped_data_formatter/extract_bill_text.py \
+            --processed-folder ${{ github.workspace }}/data_output/data_processed \
+            --batch-size 100
+          echo "✅ Bill text extraction completed"
+        else
+          echo "⚠️ No processed data directory found at ${{ github.workspace }}/data_output/data_processed"
+          echo "This usually means no bills were processed in the previous step."
+          echo "Skipping bill text extraction."
+        fi
 
     - name: Commit and Push Changes
       shell: bash
@@ -217,16 +247,16 @@ runs:
         echo "🔧 Setting up git configuration..."
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         git config --global user.name "github-actions[bot]"
-        
+
         echo "📊 Checking git status..."
         git status
-        
+
         echo "📁 Adding all changes..."
         git add .
-        
+
         echo "📝 Committing changes..."
         git diff --cached --quiet && echo "No changes to commit" || git commit -m "Automated OpenStates data update for ${{ inputs.state }} with bill text extraction"
-        
+
         echo "🚀 Pushing changes..."
         if [ "${{ inputs.force-update }}" = "true" ]; then
           echo "⚠️ Force pushing changes..."
@@ -234,5 +264,5 @@ runs:
         else
           git push || echo "⚠️ Git push failed — possibly due to upstream changes."
         fi
-        
+
         echo "✅ Repository update completed"
