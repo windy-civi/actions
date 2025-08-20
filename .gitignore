@@ -48,6 +48,7 @@ Thumbs.db
 test_output/
 sample_data/restructure_demo/
 sample_data/extracted_text/
+sample_data/files_from_links/*.xml
 sample_data/version_comparison*.json
 *.log
 
