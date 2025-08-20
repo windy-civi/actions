@@ -180,26 +180,39 @@ def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path) -> boo
 
                 # Ensure files directory exists
                 files_dir.mkdir(parents=True, exist_ok=True)
-                
+                print(f"   📁 Created directory: {files_dir}")
+
                 # Save XML content
                 xml_file = files_dir / xml_filename
-                with open(xml_file, "w", encoding="utf-8") as f:
-                    f.write(xml_content)
+                print(f"   💾 Saving XML to: {xml_file}")
+                try:
+                    with open(xml_file, "w", encoding="utf-8") as f:
+                        f.write(xml_content)
+                    print(f"   ✅ XML saved successfully")
+                except Exception as e:
+                    print(f"   ❌ Error saving XML: {e}")
+                    continue
 
                 # Save extracted text
                 text_file = files_dir / text_filename
-                with open(text_file, "w", encoding="utf-8") as f:
-                    f.write(f"Title: {extracted_data['title']}\n")
-                    f.write(f"Official Title: {extracted_data['official_title']}\n")
-                    f.write(f"Number of Sections: {len(extracted_data['sections'])}\n")
-                    f.write("\n" + "=" * 80 + "\n\n")
+                print(f"   💾 Saving text to: {text_file}")
+                try:
+                    with open(text_file, "w", encoding="utf-8") as f:
+                        f.write(f"Title: {extracted_data['title']}\n")
+                        f.write(f"Official Title: {extracted_data['official_title']}\n")
+                        f.write(f"Number of Sections: {len(extracted_data['sections'])}\n")
+                        f.write("\n" + "=" * 80 + "\n\n")
 
-                for i, section in enumerate(extracted_data["sections"], 1):
-                    f.write(f"Section {i}:\n{section}\n\n")
+                        for i, section in enumerate(extracted_data["sections"], 1):
+                            f.write(f"Section {i}:\n{section}\n\n")
 
-                f.write("\n" + "=" * 80 + "\n\n")
-                f.write("Raw Text:\n")
-                f.write(extracted_data["raw_text"])
+                        f.write("\n" + "=" * 80 + "\n\n")
+                        f.write("Raw Text:\n")
+                        f.write(extracted_data["raw_text"])
+                    print(f"   ✅ Text saved successfully")
+                except Exception as e:
+                    print(f"   ❌ Error saving text: {e}")
+                    continue
 
                 success_count += 1
                 print(f"✅ Extracted text for version: {version_note or 'default'}")
