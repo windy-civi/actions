@@ -144,14 +144,14 @@ def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path) -> boo
             "text/plain",  # Basic: Plain text
         ]
 
-                # Process versions first (primary bill text), then documents (supporting materials)
+        # Process versions first (primary bill text), then documents (supporting materials)
         arrays_to_process = []
-        
+
         # Add versions array first (prioritized - contains actual bill text)
         versions = metadata.get("versions", [])
         if versions:
             arrays_to_process.append(("versions", versions))
-        
+
         # Add documents array second (supporting documentation)
         documents = metadata.get("documents", [])
         if documents:
@@ -250,12 +250,20 @@ def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path) -> boo
                 filename = create_safe_filename(url, item_note, file_extension)
                 text_filename = filename.replace(f".{file_extension}", "_extracted.txt")
 
-                # Ensure files directory exists
-                files_dir.mkdir(parents=True, exist_ok=True)
-                print(f"   📁 Created directory: {files_dir}")
+                # Create appropriate directory structure
+                if array_name == "documents":
+                    # Put documents in a separate subfolder
+                    target_dir = files_dir / "documents"
+                    target_dir.mkdir(parents=True, exist_ok=True)
+                    print(f"   📁 Created documents directory: {target_dir}")
+                else:
+                    # Put versions in the main files directory
+                    target_dir = files_dir
+                    target_dir.mkdir(parents=True, exist_ok=True)
+                    print(f"   📁 Created directory: {target_dir}")
 
                 # Save original content
-                content_file = files_dir / filename
+                content_file = target_dir / filename
                 print(f"   💾 Saving {file_extension.upper()} to: {content_file}")
                 try:
                     with open(content_file, "w", encoding="utf-8") as f:
@@ -266,7 +274,7 @@ def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path) -> boo
                     continue
 
                 # Save extracted text
-                text_file = files_dir / text_filename
+                text_file = target_dir / text_filename
                 print(f"   💾 Saving text to: {text_file}")
                 try:
                     with open(text_file, "w", encoding="utf-8") as f:
@@ -388,14 +396,15 @@ def download_pdf_content(url: str) -> str:
     try:
         response = requests.get(url, timeout=30)
         response.raise_for_status()
-        
+
         # Try multiple PDF parsing libraries in order of preference
         pdf_content = None
-        
+
         # Try pdfplumber first (best for complex layouts)
         try:
             import pdfplumber
             import io
+
             pdf_file = io.BytesIO(response.content)
             with pdfplumber.open(pdf_file) as pdf:
                 text_parts = []
@@ -411,11 +420,12 @@ def download_pdf_content(url: str) -> str:
             pass
         except Exception as e:
             print(f"   ⚠️ pdfplumber failed: {e}")
-        
+
         # Try PyPDF2 as fallback
         try:
             import PyPDF2
             import io
+
             pdf_file = io.BytesIO(response.content)
             pdf_reader = PyPDF2.PdfReader(pdf_file)
             text_parts = []
@@ -431,11 +441,12 @@ def download_pdf_content(url: str) -> str:
             pass
         except Exception as e:
             print(f"   ⚠️ PyPDF2 failed: {e}")
-        
+
         # Try pymupdf (fitz) as another fallback
         try:
             import fitz  # PyMuPDF
             import io
+
             pdf_file = io.BytesIO(response.content)
             doc = fitz.open(stream=pdf_file, filetype="pdf")
             text_parts = []
@@ -452,11 +463,11 @@ def download_pdf_content(url: str) -> str:
             pass
         except Exception as e:
             print(f"   ⚠️ PyMuPDF failed: {e}")
-        
+
         # If all libraries fail, return a placeholder
         print(f"   ⚠️ No PDF parsing libraries available")
         return f"[PDF content from {url} - requires PDF parsing library (pdfplumber, PyPDF2, or PyMuPDF)]"
-        
+
     except Exception as e:
         print(f"   ❌ Failed to download PDF: {e}")
         return None
@@ -497,35 +508,37 @@ def extract_text_from_pdf(pdf_content: str) -> dict:
     """Extract text from PDF content."""
     # The pdf_content is already extracted text from the PDF
     # Clean up the text and structure it
-    lines = pdf_content.split('\n')
+    lines = pdf_content.split("\n")
     cleaned_lines = [line.strip() for line in lines if line.strip()]
-    
+
     # Try to identify title and sections
     title = ""
     sections = []
     current_section = []
-    
+
     for line in cleaned_lines:
         # Look for title patterns (usually at the top, all caps, or contains "AN ACT")
-        if not title and ("AN ACT" in line.upper() or "BILL" in line.upper() or len(line) > 50):
+        if not title and (
+            "AN ACT" in line.upper() or "BILL" in line.upper() or len(line) > 50
+        ):
             title = line
         # Look for section headers (numbers, "SECTION", etc.)
-        elif re.match(r'^(Section|§|\d+\.)', line, re.IGNORECASE):
+        elif re.match(r"^(Section|§|\d+\.)", line, re.IGNORECASE):
             if current_section:
-                sections.append('\n'.join(current_section))
+                sections.append("\n".join(current_section))
                 current_section = []
             current_section.append(line)
         else:
             current_section.append(line)
-    
+
     # Add the last section
     if current_section:
-        sections.append('\n'.join(current_section))
-    
+        sections.append("\n".join(current_section))
+
     # If no sections found, treat the whole content as one section
     if not sections:
         sections = [pdf_content]
-    
+
     return {
         "title": title or "PDF Document",
         "official_title": title or "",
