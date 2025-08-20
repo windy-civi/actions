@@ -15,3 +15,11 @@ orjson==3.10.7
 
 # Optional: rich terminal output for debugging
 rich==13.9.1
+
+# PDF text extraction libraries (in order of preference)
+pdfplumber==0.10.3
+PyPDF2==3.0.1
+PyMuPDF==1.23.26
+
+# HTML parsing for bill text extraction
+beautifulsoup4==4.12.3

@@ -90,7 +90,9 @@ def extract_text_from_xml(xml_content: str) -> Dict[str, str]:
         return {"error": f"Failed to parse XML: {e}"}
 
 
-def create_safe_filename(url: str, version_note: str = "", file_extension: str = "xml") -> str:
+def create_safe_filename(
+    url: str, version_note: str = "", file_extension: str = "xml"
+) -> str:
     """
     Create a safe filename from URL and version note.
 
@@ -136,21 +138,21 @@ def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path) -> boo
 
         # Define media type preference order (best to worst)
         MEDIA_TYPE_PREFERENCE = [
-            "text/xml",      # Best: Structured XML data
-            "text/html",     # Good: HTML content
-            "application/pdf", # Acceptable: PDF files
-            "text/plain"     # Basic: Plain text
+            "text/xml",  # Best: Structured XML data
+            "text/html",  # Good: HTML content
+            "application/pdf",  # Acceptable: PDF files
+            "text/plain",  # Basic: Plain text
         ]
 
-        # Process both versions and documents arrays
+                # Process versions first (primary bill text), then documents (supporting materials)
         arrays_to_process = []
         
-        # Add versions array if it exists
+        # Add versions array first (prioritized - contains actual bill text)
         versions = metadata.get("versions", [])
         if versions:
             arrays_to_process.append(("versions", versions))
         
-        # Add documents array if it exists
+        # Add documents array second (supporting documentation)
         documents = metadata.get("documents", [])
         if documents:
             arrays_to_process.append(("documents", documents))
@@ -160,32 +162,35 @@ def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path) -> boo
             return True  # Don't count as error
 
         success_count = 0
-        
+
         for array_name, items in arrays_to_process:
-            print(f"   📋 Processing {array_name} array...")
-            
+            priority = "🟢 PRIMARY" if array_name == "versions" else "🟡 SUPPORTING"
+            print(f"   📋 Processing {array_name} array... ({priority})")
+
             for item in items:
                 item_note = item.get("note", "")
                 links = item.get("links", [])
-                
+
                 if not links:
                     continue  # Skip items without links
 
                 # Find best available link based on preference order
                 best_link = None
                 best_media_type = None
-                
+
                 for link in links:
                     media_type = link.get("media_type", "")
                     url = link.get("url")
-                    
+
                     if not url:
                         continue
-                    
+
                     # Check if this media type is better than current best
                     for preferred_type in MEDIA_TYPE_PREFERENCE:
                         if preferred_type in media_type.lower():
-                            if best_link is None or MEDIA_TYPE_PREFERENCE.index(preferred_type) < MEDIA_TYPE_PREFERENCE.index(best_media_type):
+                            if best_link is None or MEDIA_TYPE_PREFERENCE.index(
+                                preferred_type
+                            ) < MEDIA_TYPE_PREFERENCE.index(best_media_type):
                                 best_link = link
                                 best_media_type = preferred_type
                             break
@@ -195,7 +200,7 @@ def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path) -> boo
 
                 url = best_link.get("url")
                 media_type = best_link.get("media_type", "")
-                
+
                 print(f"   📥 Downloading: {url} (type: {media_type})")
 
                 # Download content based on media type
@@ -225,14 +230,23 @@ def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path) -> boo
                 elif "pdf" in media_type.lower():
                     extracted_data = extract_text_from_pdf(content)
                 else:
-                    extracted_data = {"raw_text": content, "title": "", "official_title": "", "sections": []}
+                    extracted_data = {
+                        "raw_text": content,
+                        "title": "",
+                        "official_title": "",
+                        "sections": [],
+                    }
 
                 if "error" in extracted_data:
                     print(f"   ❌ Failed to parse content: {extracted_data['error']}")
                     continue
 
                 # Create filenames
-                file_extension = "xml" if "xml" in media_type.lower() else "html" if "html" in media_type.lower() else "pdf"
+                file_extension = (
+                    "xml"
+                    if "xml" in media_type.lower()
+                    else "html" if "html" in media_type.lower() else "pdf"
+                )
                 filename = create_safe_filename(url, item_note, file_extension)
                 text_filename = filename.replace(f".{file_extension}", "_extracted.txt")
 
@@ -257,13 +271,19 @@ def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path) -> boo
                 try:
                     with open(text_file, "w", encoding="utf-8") as f:
                         f.write(f"Title: {extracted_data.get('title', 'N/A')}\n")
-                        f.write(f"Official Title: {extracted_data.get('official_title', 'N/A')}\n")
-                        f.write(f"Number of Sections: {len(extracted_data.get('sections', []))}\n")
+                        f.write(
+                            f"Official Title: {extracted_data.get('official_title', 'N/A')}\n"
+                        )
+                        f.write(
+                            f"Number of Sections: {len(extracted_data.get('sections', []))}\n"
+                        )
                         f.write(f"Source: {array_name} - {item_note}\n")
                         f.write(f"Media Type: {media_type}\n")
                         f.write("\n" + "=" * 80 + "\n\n")
 
-                        for i, section in enumerate(extracted_data.get("sections", []), 1):
+                        for i, section in enumerate(
+                            extracted_data.get("sections", []), 1
+                        ):
                             f.write(f"Section {i}:\n{section}\n\n")
 
                         f.write("\n" + "=" * 80 + "\n\n")
@@ -369,9 +389,74 @@ def download_pdf_content(url: str) -> str:
         response = requests.get(url, timeout=30)
         response.raise_for_status()
         
-        # For now, return a placeholder since PDF parsing requires additional libraries
-        # In production, you'd want to use PyPDF2, pdfplumber, or similar
-        return f"[PDF content from {url} - requires PDF parsing library]"
+        # Try multiple PDF parsing libraries in order of preference
+        pdf_content = None
+        
+        # Try pdfplumber first (best for complex layouts)
+        try:
+            import pdfplumber
+            import io
+            pdf_file = io.BytesIO(response.content)
+            with pdfplumber.open(pdf_file) as pdf:
+                text_parts = []
+                for page in pdf.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text_parts.append(page_text)
+                pdf_content = "\n\n".join(text_parts)
+                if pdf_content:
+                    print(f"   ✅ Successfully extracted PDF text using pdfplumber")
+                    return pdf_content
+        except ImportError:
+            pass
+        except Exception as e:
+            print(f"   ⚠️ pdfplumber failed: {e}")
+        
+        # Try PyPDF2 as fallback
+        try:
+            import PyPDF2
+            import io
+            pdf_file = io.BytesIO(response.content)
+            pdf_reader = PyPDF2.PdfReader(pdf_file)
+            text_parts = []
+            for page in pdf_reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text_parts.append(page_text)
+            pdf_content = "\n\n".join(text_parts)
+            if pdf_content:
+                print(f"   ✅ Successfully extracted PDF text using PyPDF2")
+                return pdf_content
+        except ImportError:
+            pass
+        except Exception as e:
+            print(f"   ⚠️ PyPDF2 failed: {e}")
+        
+        # Try pymupdf (fitz) as another fallback
+        try:
+            import fitz  # PyMuPDF
+            import io
+            pdf_file = io.BytesIO(response.content)
+            doc = fitz.open(stream=pdf_file, filetype="pdf")
+            text_parts = []
+            for page in doc:
+                page_text = page.get_text()
+                if page_text:
+                    text_parts.append(page_text)
+            doc.close()
+            pdf_content = "\n\n".join(text_parts)
+            if pdf_content:
+                print(f"   ✅ Successfully extracted PDF text using PyMuPDF")
+                return pdf_content
+        except ImportError:
+            pass
+        except Exception as e:
+            print(f"   ⚠️ PyMuPDF failed: {e}")
+        
+        # If all libraries fail, return a placeholder
+        print(f"   ⚠️ No PDF parsing libraries available")
+        return f"[PDF content from {url} - requires PDF parsing library (pdfplumber, PyPDF2, or PyMuPDF)]"
+        
     except Exception as e:
         print(f"   ❌ Failed to download PDF: {e}")
         return None
@@ -381,46 +466,71 @@ def extract_text_from_html(html_content: str) -> dict:
     """Extract text from HTML content."""
     try:
         from bs4 import BeautifulSoup
-        
-        soup = BeautifulSoup(html_content, 'html.parser')
-        
+
+        soup = BeautifulSoup(html_content, "html.parser")
+
         # Remove script and style elements
         for script in soup(["script", "style"]):
             script.decompose()
-        
+
         # Get text
         text = soup.get_text()
-        
+
         # Clean up whitespace
         lines = (line.strip() for line in text.splitlines())
         chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-        text = ' '.join(chunk for chunk in chunks if chunk)
-        
+        text = " ".join(chunk for chunk in chunks if chunk)
+
         return {
             "title": soup.title.string if soup.title else "",
             "official_title": "",
             "sections": [text],
-            "raw_text": text
+            "raw_text": text,
         }
     except ImportError:
-        return {
-            "error": "BeautifulSoup not available for HTML parsing"
-        }
+        return {"error": "BeautifulSoup not available for HTML parsing"}
     except Exception as e:
-        return {
-            "error": f"Failed to parse HTML: {e}"
-        }
+        return {"error": f"Failed to parse HTML: {e}"}
 
 
 def extract_text_from_pdf(pdf_content: str) -> dict:
     """Extract text from PDF content."""
-    # For now, return the placeholder content
-    # In production, implement actual PDF parsing
+    # The pdf_content is already extracted text from the PDF
+    # Clean up the text and structure it
+    lines = pdf_content.split('\n')
+    cleaned_lines = [line.strip() for line in lines if line.strip()]
+    
+    # Try to identify title and sections
+    title = ""
+    sections = []
+    current_section = []
+    
+    for line in cleaned_lines:
+        # Look for title patterns (usually at the top, all caps, or contains "AN ACT")
+        if not title and ("AN ACT" in line.upper() or "BILL" in line.upper() or len(line) > 50):
+            title = line
+        # Look for section headers (numbers, "SECTION", etc.)
+        elif re.match(r'^(Section|§|\d+\.)', line, re.IGNORECASE):
+            if current_section:
+                sections.append('\n'.join(current_section))
+                current_section = []
+            current_section.append(line)
+        else:
+            current_section.append(line)
+    
+    # Add the last section
+    if current_section:
+        sections.append('\n'.join(current_section))
+    
+    # If no sections found, treat the whole content as one section
+    if not sections:
+        sections = [pdf_content]
+    
     return {
-        "title": "PDF Document",
-        "official_title": "",
-        "sections": [pdf_content],
-        "raw_text": pdf_content
+        "title": title or "PDF Document",
+        "official_title": title or "",
+        "sections": sections,
+        "raw_text": pdf_content,
     }
 
 
