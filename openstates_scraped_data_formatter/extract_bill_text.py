@@ -19,18 +19,18 @@ from utils.text_extraction import process_bills_in_batch
 def main(processed_folder: Path, batch_size: int):
     """
     Extract bill text from URLs found in metadata.json files.
-    
+
     This script processes bills in batches to extract text from XML URLs
     found in the versions array of each bill's metadata.json file.
-    
+
     The extracted text is saved in the files/ directory of each bill.
     """
     print("🚀 Starting bill text extraction...")
     print(f"📁 Processing folder: {processed_folder}")
     print(f"📦 Batch size: {batch_size}")
-    
+
     stats = process_bills_in_batch(processed_folder, batch_size)
-    
+
     print(f"\n📊 Extraction Complete!")
     print(f"Total bills: {stats['total_bills']}")
     print(f"Processed: {stats['processed']}")
