@@ -57,7 +57,7 @@ runs:
                           # Check if data_processed exists (from state repository)
         if [ -d "data_output/data_processed" ]; then
           echo "📄 Found data_processed directory, analyzing bills for state: ${{ inputs.state }}"
-          
+
           # Run analysis on the processed data
           python openstates_scraped_data_formatter/cli_bill_tracker.py analyze \
             --show-summary \
@@ -67,7 +67,7 @@ runs:
           echo "✅ ${{ inputs.state }} analysis complete"
         elif [ -d "sample_data" ]; then
           echo "📄 Found sample data, analyzing for testing..."
-          
+
           python openstates_scraped_data_formatter/cli_bill_tracker.py analyze \
             --show-summary \
             --verbose \
