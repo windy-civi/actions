@@ -14,6 +14,10 @@ inputs:
     description: "Generate human-readable reports"
     required: false
     default: "true"
+  openai-api-key:
+    description: "OpenAI API key for LLM analysis"
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -32,9 +36,9 @@ runs:
     - name: Set up OpenAI API Key
       shell: bash
       run: |
-        if [ -n "${{ secrets.OPENAI_API_KEY }}" ]; then
-          echo "Using repository secret API key"
-          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
+        if [ -n "${{ inputs.openai-api-key }}" ]; then
+          echo "Using provided API key"
+          echo "OPENAI_API_KEY=${{ inputs.openai-api-key }}" >> $GITHUB_ENV
         else
           echo "No API key provided - will run in mock mode"
         fi
