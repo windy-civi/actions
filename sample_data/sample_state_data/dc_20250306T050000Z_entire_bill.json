@@ -1,0 +1,144 @@
+{
+  "legislative_session": "26",
+  "identifier": "B26-0170",
+  "title": "Modification Nos. M0009, M0010, M0011, M0012, M0013, and M0014 to Contract No. CW101626 with Collaborative Solutions for Communities Approval and Payment Authorization Emergency Act of 2025",
+  "from_organization": "~{\"classification\": \"legislature\"}",
+  "classification": [
+    "bill"
+  ],
+  "subject": [],
+  "abstracts": [],
+  "other_titles": [],
+  "other_identifiers": [],
+  "actions": [
+    {
+      "description": "B26-0170 Introduced by Chairman Mendelson at Office of the Secretary",
+      "date": "2025-03-06T05:00:00+00:00",
+      "organization_id": "~{\"classification\": \"legislature\"}",
+      "classification": [
+        "introduction"
+      ],
+      "related_entities": []
+    },
+    {
+      "description": "Retained by the Council with comments from the Committee on Human Services",
+      "date": "2025-03-18T04:00:00+00:00",
+      "organization_id": "~{\"classification\": \"legislature\"}",
+      "classification": [
+        "referral-committee"
+      ],
+      "related_entities": []
+    },
+    {
+      "description": "Final Reading, CC",
+      "date": "2025-04-01T04:00:00+00:00",
+      "organization_id": "~{\"classification\": \"legislature\"}",
+      "classification": [
+        "reading-3"
+      ],
+      "related_entities": []
+    },
+    {
+      "description": "Transmitted to Mayor, Response Due on Apr 22, 2025",
+      "date": "2025-04-07T04:00:00+00:00",
+      "organization_id": "~{\"classification\": \"executive\"}",
+      "classification": [
+        "executive-receipt",
+        "receipt"
+      ],
+      "related_entities": []
+    },
+    {
+      "description": "Signed by the Mayor and Enacted with Act Number A26-0048, Expires on Jul 21, 2025",
+      "date": "2025-04-22T04:00:00+00:00",
+      "organization_id": "~{\"classification\": \"executive\"}",
+      "classification": [
+        "became-law",
+        "executive-signature"
+      ],
+      "related_entities": []
+    },
+    {
+      "description": "Returned from Mayor",
+      "date": "2025-04-22T04:00:00+00:00",
+      "organization_id": "~{\"classification\": \"executive\"}",
+      "classification": [],
+      "related_entities": []
+    },
+    {
+      "description": "Act A26-0048 Published in DC Register Vol 72 and Page 004896, Expires on Jul 21, 2025",
+      "date": "2025-04-25T04:00:00+00:00",
+      "organization_id": "~{\"classification\": \"legislature\"}",
+      "classification": [],
+      "related_entities": []
+    }
+  ],
+  "sponsorships": [
+    {
+      "name": "Mendelson, Phil",
+      "classification": "primary",
+      "entity_type": "person",
+      "primary": true,
+      "person_id": "~{\"name\": \"Mendelson, Phil\"}",
+      "organization_id": null
+    }
+  ],
+  "related_bills": [],
+  "versions": [
+    {
+      "note": "Introduction",
+      "links": [
+        {
+          "url": "https://lims.dccouncil.gov/downloads/LIMS/57333/Introduction/B26-0170-Introduction.pdf?Id=207906",
+          "media_type": "application/pdf"
+        }
+      ],
+      "date": "",
+      "classification": ""
+    },
+    {
+      "note": "Enrollment",
+      "links": [
+        {
+          "url": "https://lims.dccouncil.gov/downloads/LIMS/57333/Meeting1/Enrollment/B26-0170-Enrollment1.pdf?Id=209600",
+          "media_type": "application/pdf"
+        }
+      ],
+      "date": "",
+      "classification": ""
+    }
+  ],
+  "documents": [
+    {
+      "note": "Signed by the Mayor and Enacted with Act Number A26-0048, Expires on Jul 21, 2025",
+      "links": [
+        {
+          "url": "https://lims.dccouncil.gov/downloads/LIMS/57333/Signed_Act/B26-0170-Signed_Act.pdf?Id=210316",
+          "media_type": "application/pdf"
+        }
+      ],
+      "date": "",
+      "classification": ""
+    }
+  ],
+  "citations": [],
+  "sources": [
+    {
+      "url": "https://lims.dccouncil.gov/api/v2/PublicData/BulkData/1/26",
+      "note": ""
+    },
+    {
+      "url": "https://lims.dccouncil.gov/Legislation/B26-0170",
+      "note": ""
+    }
+  ],
+  "extras": {},
+  "jurisdiction": {
+    "id": "ocd-jurisdiction/country:us/district:dc/government",
+    "name": "District of Columbia",
+    "classification": "state",
+    "division_id": "ocd-division/country:us/district:dc"
+  },
+  "scraped_at": "2025-08-05T18:50:12+00:00",
+  "_id": "fea106c8-722c-11f0-8159-ce37e91e6705"
+}

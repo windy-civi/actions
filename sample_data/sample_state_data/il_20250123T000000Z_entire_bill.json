@@ -1,0 +1,95 @@
+{
+  "legislative_session": "104th",
+  "identifier": "AM1030352",
+  "title": "APPOINT-ELIZABETH M. WHITEHORN",
+  "from_organization": "~{\"classification\": \"upper\"}",
+  "classification": [
+    "appointment"
+  ],
+  "subject": [],
+  "abstracts": [
+    {
+      "note": "",
+      "abstract": "Nominates Elizabeth M. Whitehorn as the Director of the Illinois Department of Healthcare and Family Services."
+    }
+  ],
+  "other_titles": [],
+  "other_identifiers": [],
+  "actions": [
+    {
+      "description": "** Appointment Message Carried Over from Previous General Assembly **",
+      "date": "2025-01-23",
+      "organization_id": "~{\"classification\": \"upper\"}",
+      "classification": [],
+      "related_entities": []
+    },
+    {
+      "description": "Received by the Senate Sen. Laura M. Murphy;  on 10/18/2023",
+      "date": "2025-01-23",
+      "organization_id": "~{\"classification\": \"upper\"}",
+      "classification": [],
+      "related_entities": []
+    },
+    {
+      "description": "Assigned to Executive Appointments;  on 10/18/2023 - and on 01/07/2025, Due to Sine Die of the 103rd General Assembly",
+      "date": "2025-01-23",
+      "organization_id": "~{\"classification\": \"upper\"}",
+      "classification": [
+        "referral-committee"
+      ],
+      "related_entities": []
+    }
+  ],
+  "sponsorships": [
+    {
+      "name": "Laura M. Murphy",
+      "classification": "primary",
+      "entity_type": "person",
+      "primary": true,
+      "person_id": "~{\"chamber\": \"upper\", \"name\": \"Laura M. Murphy\"}",
+      "organization_id": null
+    }
+  ],
+  "related_bills": [],
+  "versions": [],
+  "documents": [
+    {
+      "note": "AM1030352",
+      "links": [
+        {
+          "url": "https://ilga.gov/Legislation/BillStatus/FullText?LegDocId=197623&DocName=10400AM1030352&DocNum=1030352&DocTypeID=AM&LegID=157833&GAID=18&SessionID=114&SpecSess=&Session=",
+          "media_type": ""
+        }
+      ],
+      "date": "",
+      "classification": ""
+    },
+    {
+      "note": "Printer Friendly Version",
+      "links": [
+        {
+          "url": "https://ilga.gov/Legislation/BillStatus/FullText?GAID=18&DocNum=1030352&DocTypeID=AM&LegId=157833&SessionID=114&Print=1",
+          "media_type": ""
+        }
+      ],
+      "date": "",
+      "classification": ""
+    }
+  ],
+  "citations": [],
+  "sources": [
+    {
+      "url": "https://ilga.gov/Legislation/BillStatus?DocNum=1030352&GAID=18&DocTypeID=AM&LegId=157833&SessionID=114",
+      "note": ""
+    }
+  ],
+  "extras": {},
+  "jurisdiction": {
+    "id": "ocd-jurisdiction/country:us/state:il/government",
+    "name": "Illinois",
+    "classification": "state",
+    "division_id": "ocd-division/country:us/state:il"
+  },
+  "scraped_at": "2025-07-29T21:34:24+00:00",
+  "_id": "cbad9024-6cc3-11f0-8880-2e8ff602c628"
+}
