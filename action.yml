@@ -83,9 +83,6 @@ runs:
           echo "📁 Available directories:"
           ls -la
         fi
-        fi
-
-        fi
 
     - name: Upload analysis reports
       uses: actions/upload-artifact@v4

@@ -26,14 +26,14 @@ def cli():
 @click.option(
     "--metadata",
     "-m",
-    default="sample_data/wy_sample/metadata_wy_SAMPLE.json",
-    help="Path to bill metadata JSON file",
+    default="data_output/data_processed",
+    help="Path to data_processed directory or specific metadata file",
 )
 @click.option(
     "--pdf-dir",
     "-p",
-    default="sample_data/wy_sample",
-    help="Directory containing PDF versions",
+    default="data_output/data_processed",
+    help="Directory containing processed data",
 )
 @click.option(
     "--output",
@@ -71,14 +71,21 @@ def analyze(metadata, pdf_dir, output, api_key, show_summary, verbose):
         click.echo("🤖 Wyoming Bill Tracker CLI")
         click.echo("=" * 50)
 
-    # Check if files exist
-    if not Path(metadata).exists():
-        click.echo(f"❌ Metadata file not found: {metadata}", err=True)
+    # Check if data_processed directory exists
+    data_processed_path = Path("data_output/data_processed")
+    if not data_processed_path.exists():
+        click.echo(f"❌ Data processed directory not found: {data_processed_path}", err=True)
+        click.echo("Make sure the data pipeline has been run first", err=True)
         return 1
 
-    if not Path(pdf_dir).exists():
-        click.echo(f"❌ PDF directory not found: {pdf_dir}", err=True)
+    # Find all bill directories
+    bill_dirs = list(data_processed_path.glob("*/*/"))
+    if not bill_dirs:
+        click.echo(f"❌ No bill directories found in {data_processed_path}", err=True)
         return 1
+
+    if verbose:
+        click.echo(f"📄 Found {len(bill_dirs)} bill directories")
 
     # Initialize tracker
     tracker = WyomingBillTracker(api_key)
