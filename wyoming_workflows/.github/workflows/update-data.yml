@@ -1,0 +1,44 @@
+name: Update Data
+on:
+  schedule:
+    - cron: "0 1 * * *" # every day at 1am UTC
+  workflow_dispatch:
+    inputs:
+      state:
+        type: string
+        description: "State to process (2-letter abbreviation)"
+        default: "wy"
+      use-scrape-cache:
+        type: boolean
+        description: Use open states scraper cache
+        default: false
+      force-update:
+        type: boolean
+        description: "Force push changes even if there are upstream changes (use with caution)"
+        default: false
+
+jobs:
+  update-data:
+    name: Update Data
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Data Pipeline
+        uses: windy-civi/opencivicdata-blockchain-transformer@bill-text-extraction
+        with:
+          state: ${{ inputs.state || 'wy' }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          use-scrape-cache: ${{ inputs.use-scrape-cache }}
+          force-update: ${{ inputs.force-update }}
+
+      - name: Summary
+        run: |
+          echo "✅ Data pipeline complete"
+          echo "📊 Check the data_output/ folder for processed data"
+          echo "🔄 Next: Run LLM analysis workflow to analyze bills"
