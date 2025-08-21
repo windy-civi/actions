@@ -64,6 +64,7 @@ runs:
 
             # Run analysis on the processed data
             python ${{ github.action_path }}/openstates_scraped_data_formatter/cli_bill_tracker.py \
+              --state "${{ inputs.state }}" \
               --show-summary \
               --verbose \
               --output "${{ inputs.state }}_llm_analysis_$(date +%Y%m%d_%H%M%S).json"
@@ -73,6 +74,7 @@ runs:
             echo "📄 Found sample data, analyzing for testing..."
 
             python ${{ github.action_path }}/openstates_scraped_data_formatter/cli_bill_tracker.py \
+              --state "${{ inputs.state }}" \
               --show-summary \
               --verbose \
               --output "${{ inputs.state }}_sample_analysis_$(date +%Y%m%d_%H%M%S).json"

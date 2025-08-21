@@ -19,6 +19,12 @@ from utils.simple_llm_agent import SimpleLLMAgent
 
 @click.command()
 @click.option(
+    "--state",
+    "-s",
+    required=True,
+    help="State abbreviation (e.g., wy, tx, il)",
+)
+@click.option(
     "--output",
     "-o",
     default="bill_analysis_report.json",
@@ -31,12 +37,12 @@ from utils.simple_llm_agent import SimpleLLMAgent
     help="OpenAI API key (or set OPENAI_API_KEY env var)",
 )
 @click.option(
-    "--show-summary", "-s", is_flag=True, help="Show human-readable summary in terminal"
+    "--show-summary", is_flag=True, help="Show human-readable summary in terminal"
 )
 @click.option(
     "--verbose", "-v", is_flag=True, help="Show detailed progress information"
 )
-def analyze(output, api_key, show_summary, verbose):
+def analyze(state, output, api_key, show_summary, verbose):
     """
     Analyze state legislative bills with LLM.
 
@@ -56,54 +62,75 @@ def analyze(output, api_key, show_summary, verbose):
     # Check if data_processed directory exists
     data_processed_path = Path("data_output/data_processed")
     if not data_processed_path.exists():
-        click.echo(f"❌ Data processed directory not found: {data_processed_path}", err=True)
+        click.echo(
+            f"❌ Data processed directory not found: {data_processed_path}", err=True
+        )
         click.echo("Make sure the data pipeline has been run first", err=True)
         return 1
 
-    # Find all bill directories
-    bill_dirs = list(data_processed_path.glob("*/*/"))
-    if not bill_dirs:
-        click.echo(f"❌ No bill directories found in {data_processed_path}", err=True)
+    # Find all bill files in the correct structure
+    # Look for: data_processed/country:us/state:{state}/sessions/*/bills/*.json
+    bill_files = list(
+        data_processed_path.glob(f"country:us/state:{state}/sessions/*/bills/*.json")
+    )
+    if not bill_files:
+        click.echo(f"❌ No bill files found in {data_processed_path}", err=True)
+        click.echo(
+            "Expected structure: data_processed/country:us/state:*/sessions/*/bills/*.json",
+            err=True,
+        )
         return 1
 
     if verbose:
-        click.echo(f"📄 Found {len(bill_dirs)} bill directories")
+        click.echo(f"📄 Found {len(bill_files)} bill files")
 
     # Initialize LLM agent
     agent = SimpleLLMAgent(api_key)
 
-    # Analyze each bill
+    # Analyze each bill file
     results = []
-    for bill_dir in bill_dirs[:5]:  # Limit to first 5 bills for now
+    for bill_file in bill_files[:10]:  # Limit to first 10 bills for now
         if verbose:
-            click.echo(f"📋 Analyzing {bill_dir.name}...")
-        
-        # Look for metadata.json in the bill directory
-        metadata_file = bill_dir / "metadata.json"
-        if metadata_file.exists():
-            with open(metadata_file, 'r') as f:
+            click.echo(f"📋 Analyzing {bill_file.name}...")
+
+        try:
+            with open(bill_file, "r") as f:
                 metadata = json.load(f)
-            
+
+            # Extract session and state info from path
+            path_parts = bill_file.parts
+            state_part = next(
+                (part for part in path_parts if part.startswith("state:")), "unknown"
+            )
+            session_part = next(
+                (part for part in path_parts if part.isdigit()), "unknown"
+            )
+
             # Analyze the bill metadata
             analysis = agent.analyze_bill_content(
-                str(metadata), 
-                f"Bill {bill_dir.name} from {bill_dir.parent.name}"
+                str(metadata),
+                f"Bill {bill_file.stem} from {state_part} session {session_part}",
             )
-            
-            results.append({
-                "bill_id": bill_dir.name,
-                "session": bill_dir.parent.name,
-                "analysis": analysis
-            })
-            
+
+            results.append(
+                {
+                    "bill_id": bill_file.stem,
+                    "state": state_part,
+                    "session": session_part,
+                    "file_path": str(bill_file),
+                    "analysis": analysis,
+                }
+            )
+
             if verbose:
-                click.echo(f"✅ Analyzed {bill_dir.name}")
-        else:
+                click.echo(f"✅ Analyzed {bill_file.name}")
+        except Exception as e:
             if verbose:
-                click.echo(f"⚠️ No metadata.json found in {bill_dir.name}")
+                click.echo(f"❌ Error analyzing {bill_file.name}: {e}")
+            continue
 
     # Save results
-    with open(output, 'w') as f:
+    with open(output, "w") as f:
         json.dump(results, f, indent=2)
 
     if show_summary:
@@ -111,7 +138,7 @@ def analyze(output, api_key, show_summary, verbose):
         click.echo("=" * 50)
         for result in results:
             click.echo(f"📄 {result['bill_id']} ({result['session']})")
-            if 'analysis' in result and 'key_topics' in result['analysis']:
+            if "analysis" in result and "key_topics" in result["analysis"]:
                 click.echo(f"   Topics: {', '.join(result['analysis']['key_topics'])}")
             click.echo()
 
