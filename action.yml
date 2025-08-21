@@ -63,19 +63,19 @@ runs:
           echo "📄 Found data_processed directory, analyzing bills for state: ${{ inputs.state }}"
 
           # Run analysis on the processed data
-          python openstates_scraped_data_formatter/cli_bill_tracker.py analyze \
+          python ${{ github.action_path }}/openstates_scraped_data_formatter/cli_bill_tracker.py analyze \
             --show-summary \
             --verbose \
-            --output "${STATE}_llm_analysis_$(date +%Y%m%d_%H%M%S).json"
+            --output "${{ inputs.state }}_llm_analysis_$(date +%Y%m%d_%H%M%S).json"
 
           echo "✅ ${{ inputs.state }} analysis complete"
         elif [ -d "sample_data" ]; then
           echo "📄 Found sample data, analyzing for testing..."
 
-          python openstates_scraped_data_formatter/cli_bill_tracker.py analyze \
+          python ${{ github.action_path }}/openstates_scraped_data_formatter/cli_bill_tracker.py analyze \
             --show-summary \
             --verbose \
-            --output "${STATE}_sample_analysis_$(date +%Y%m%d_%H%M%S).json"
+            --output "${{ inputs.state }}_sample_analysis_$(date +%Y%m%d_%H%M%S).json"
 
           echo "✅ ${{ inputs.state }} sample analysis complete"
         else
