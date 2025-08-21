@@ -93,9 +93,9 @@ runs:
       with:
         name: llm-analysis-reports-${{ github.run_id }}
         path: |
-          *.json
-          llm_analysis_results.json
-          wyoming_bill_tracker_report.json
+          *_llm_analysis_*.json
+          *_sample_analysis_*.json
+          bill_analysis_report.json
         retention-days: 30
 
     - name: Generate summary
