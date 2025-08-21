@@ -56,3 +56,35 @@ sample_data/version_comparison*.json
 *.tmp
 *.temp
 
+# Analysis outputs
+llm_analysis_results.json
+bill_tracker_report.json
+wyoming_bill_tracker_report.json
+*_llm_analysis_*.json
+
+# Data outputs (keep structure but ignore content)
+data_output/data_processed/*/logs/
+data_output/data_processed/*/files/
+data_output/data_not_processed/
+data_output/event_archive/
+
+# Cache and temporary files
+.cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Backup files
+*.bak
+*.backup
+*~
+

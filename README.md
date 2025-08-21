@@ -1,146 +1,153 @@
-# OpenStates Manifest Dev
+# OpenCivicData Blockchain Transformer
 
-Local sandbox to extract a manifest of federal bills for downstream AI analysis.
+A GitHub Actions-powered pipeline that scrapes, cleans, and formats state legislative data from OpenStates into blockchain-style, versioned data structures.
 
-## Setup
+## 🏗️ Repository Structure
 
-```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python scripts/generate_manifest_from_sample.py
+This repository provides **two composite actions** that can be used by state-specific repositories:
+
+```
+├── action1/                    # Data Pipeline Action
+│   └── action.yml             # Scrapes and formats legislative data
+├── action2/                    # LLM Analysis Action
+│   └── action.yml             # Analyzes bills using LLM
+├── openstates_scraped_data_formatter/  # Core formatter code
+│   ├── main.py                # Main entry point
+│   ├── handlers/              # Data handlers
+│   ├── postprocessors/        # Post-processing logic
+│   └── utils/                 # Utility functions
+├── Pipfile                    # Python dependencies
+└── requirements.txt           # Alternative dependency management
 ```
 
-# Windy Civi Dta Pipeline template: no saved scraped data
+## 🚀 Composite Actions
 
-## A GitHub Actions-powered pipeline that scrapes, cleans, and versions state legislative data from Open States.
+### Action 1: Data Pipeline
 
-This repository provides a self-contained GitHub Actions workflow to:
+- **Purpose**: Scrapes, cleans, and formats state legislative data
+- **Branch**: `bill-text-extraction`
+- **Functionality**:
+  - Scrapes data from OpenStates
+  - Formats into blockchain-style structure
+  - Commits formatted data to repository
 
-1. 🧹 **Scrape** data for a single U.S. state from the OpenStates project
-2. 🧼 **Sanitize** it (removing `_id` and `scraped_at` fields for deterministic output)
-3. 🧠 **Format** it into a blockchain-style, versioned data structure
-4. 📂 **Commit** the formatted output to this repo nightly (or manually)
+### Action 2: LLM Analysis
 
----
+- **Purpose**: Analyzes legislative bills using LLM
+- **Branch**: `llm-bill-tracker`
+- **Functionality**:
+  - Summarizes bill content
+  - Tracks version changes
+  - Generates human-readable reports
+  - Cost: ~$0.004 per bill
 
-## 🔧 Setup Instructions
+## 📋 Usage
 
-1. **Create a new repo** using this one as a template (via GitHub's "Use this template" button).
-2. **Rename your repo** using the convention: `STATE-data-pipeline`, replacing `STATE` with the 2-letter abbreviation (e.g. `il`, `tx`, `wi`).
-3. In `.github/workflows/update-data.yml`:
+### For State Repositories
 
-- Replace `STATE` under `env:` with the lowercase 2-letter state abbreviation (e.g. `il`, `tx`, `wi`)
-- Make sure it matches the folder name used in the [Open States scrapers](https://github.com/openstates/openstates-scrapers/tree/main/scrapers)
-- (Optional) Uncomment the schedule block if you want this pipeline to run automatically
+State repositories can use these actions by creating workflows that call the composite actions:
 
 ```yaml
-# schedule:
-#   - cron: "0 1 * * *"
+# Example: .github/actions/action1/update-data.yml
+name: Update Data
+on:
+  schedule:
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: windy-civi/opencivicdata-blockchain-transformer@bill-text-extraction
+        with:
+          state: wy
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-To enable it, remove the # at the beginning of both lines:
+```yaml
+# Example: .github/actions/action2/llm-analysis.yml
+name: LLM Bill Analysis
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
 
-4. Enable GitHub Actions in your repo.
-
-Once set up, the pipeline will run:
-
-- ♻️ **Every night at 1am UTC** (by default — you can change the time by editing the [cron expression](https://crontab.guru/) in `.github/workflows/update-data.yml`)
-  , and
-- 🧑‍💻 **Any time you manually trigger it from the GitHub UI**
-
----
-
-## 📁 Folder Structure
-
-```markdown
-STATE-windy-civi-data-pipeline/
-├── .github/workflows/ # GitHub Actions automation
-├── \_data/ # Data downloaded from Open States scrapers (optional; see below to enable/disable)
-├── bill_session_mapping/ # Internal mapping of bill IDs to legislative sessions
-├── data_output/ # Formatter output files
-│ ├── data_processed/ # Clean structured output by session and bill
-│ ├── data_not_processed/ # Items that could not be parsed or routed
-│ └── event_archive/ # Raw extracted events saved for post-processing
-├── openstates_scraped_data_formatter/ # Formatter for blockchain-style output
-├── sessions/ # Generated session metadata JSON
-├── Pipfile, Pipfile.lock # Formatter dependencies
-└── README.md # Project setup and usage info
+jobs:
+  llm-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: windy-civi/opencivicdata-blockchain-transformer@llm-bill-tracker
+        with:
+          state: wy
+          analyze-versions: true
+          generate-reports: true
 ```
 
----
+## 🔧 Setup
 
-## 📦 Output Format
+### Prerequisites
 
-Formatted data is saved to `data_output/data_processed/`, organized by session and bill. Each folder includes:
+- Python 3.11+
+- pipenv (for dependency management)
+- OpenAI API key (for LLM analysis)
 
-- `logs/`: timestamped JSONs for bill actions, events, and votes
-- `files/`: placeholder for source documents (if enabled)
+### Installation
 
-Additional folders:
+```bash
+# Install dependencies
+pipenv install
 
-- `data_not_processed/`: Items that could not be fully parsed or matched (e.g. missing session info)
-- `event_archive/`: Extracted events temporarily stored for linking to bill actions
+# Set up environment variables
+export OPENAI_API_KEY="your-api-key-here"
+```
 
----
+## 📊 Output Format
 
-## 🔁 Notes on Workflow Behavior
+### Data Pipeline Output
 
-- The `data_output/`, `bill_session_mapping/`, and `sessions/` folders persist in the repo after each run
-- GitHub Actions writes directly to those folders using `rsync`
-- No folders are auto-deleted; only overwritten if files change
-- Session mappings and new session logs are automatically updated
+Formatted data is saved to `data_output/data_processed/`, organized by session and bill:
 
----
+- `logs/`: Timestamped JSONs for bill actions, events, and votes
+- `files/`: Source documents (if enabled)
+- `metadata.json`: Bill metadata at the root of each bill folder
 
-### Optional: Include `_data` in Your Repository
+### LLM Analysis Output
 
-By default, this pipeline will save a copy of the scraped data to a `_data/` folder in your repo. This can be helpful for debugging or reviewing raw input files. However, it will significantly increase your repo size over time, so you may wish to disable it.
+- **Bill summaries** with key provisions
+- **Version change tracking** between bill versions
+- **Human-readable reports** of legislative changes
+- **Downloadable artifacts** with full analysis
 
-We provide templates with `_data` **enabled** and **disabled**. You can switch between them anytime. Here's how:
+## 💰 Cost Analysis
 
----
+- **Data Pipeline**: Free (no external API calls)
+- **LLM Analysis**: ~$0.004 per bill
+- **100 bills**: ~$0.40
+- **1,000 bills**: ~$4.00
 
-### ✅ To Enable `_data` Saving:
+## 🎯 Branches
 
-1. **In your GitHub Actions workflow (`.github/workflows/update-data.yml`)**, make sure this step is **uncommented**:
+- **`main`**: Stable releases
+- **`bill-text-extraction`**: Data pipeline functionality
+- **`llm-bill-tracker`**: LLM analysis functionality
 
-   ```yaml
-   - name: Copy Scraped Data to Repo
-     run: |
-       mkdir -p "$GITHUB_WORKSPACE/_data/$STATE"
-       cp -r "${RUNNER_TEMP}/_working/_data/$STATE"/* "$GITHUB_WORKSPACE/_data/$STATE/"
-   ```
+## 📚 Documentation
 
-2. **In the commit step**, make sure `_data` is included:
+- [LLM Setup Guide](LLM_SETUP_GUIDE.md) - How to use LLM analysis
+- [Wyoming Repository Setup](WYOMING_REPO_SETUP.md) - Complete setup guide for state repositories
+- [Project Rules](PROJECT_RULES.md) - Data handling rules and standards
 
-   ```bash
-   git add _data data_output bill_session_mapping sessions
-   ```
+## 🤝 Contributing
 
----
+This is part of the Windy Civi project. For questions, improvements, or help:
 
-### 🚫 To Disable `_data` Saving:
-
-1. **Comment out the `Copy Scraped Data` step** in `.github/workflows/update-data.yml`:
-
-   ```yaml
-   # - name: Copy Scraped Data to Repo
-   #   run: |
-   #     mkdir -p "$GITHUB_WORKSPACE/_data/$STATE"
-   #     cp -r "${RUNNER_TEMP}/_working/_data/$STATE"/* "$GITHUB_WORKSPACE/_data/$STATE/"
-   ```
-
-2. **Remove `_data` from the `git add` command**:
-
-   ```bash
-   git add data_output bill_session_mapping sessions
-   ```
+- Open an issue
+- Join our Slack
+- Check the documentation
 
 ---
 
-## 💬 Questions or Contributions?
-
-This is part of the [Windy Civi](https://github.com/windy-civi) project. If you're working on a new state, want to suggest improvements, or need help, feel free to open an issue or join our Slack!
-
-📝 _Note: You can always copy from the template workflows we provide (`.github/workflows/update-data-with-data.yml` vs `.github/workflows/update-data.yml`) and modify as needed. We recommend disabling `_data` once your setup is stable to keep the repo lightweight._
+**Ready to transform legislative data!** 🏛️📊

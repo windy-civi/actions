@@ -7,22 +7,22 @@ on:
     inputs:
       state:
         type: choice
-        description: 'State to analyze'
+        description: "State to analyze"
         options:
           - wy
           - all
-        default: 'wy'
+        default: "wy"
       api-key:
         type: string
-        description: 'OpenAI API Key (or use repository secret)'
+        description: "OpenAI API Key (or use repository secret)"
         required: false
       analyze-versions:
         type: boolean
-        description: 'Analyze bill versions and track changes'
+        description: "Analyze bill versions and track changes"
         default: true
       generate-reports:
         type: boolean
-        description: 'Generate human-readable reports'
+        description: "Generate human-readable reports"
         default: true
 
 jobs:
@@ -42,7 +42,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install dependencies
         run: |
@@ -67,24 +67,24 @@ jobs:
           echo "State: ${{ inputs.state }}"
           echo "Analyze versions: ${{ inputs.analyze-versions }}"
           echo "Generate reports: ${{ inputs.generate-reports }}"
-          
+
           # For now, run the Wyoming analysis
           if [ "${{ inputs.state }}" = "wy" ] || [ "${{ inputs.state }}" = "all" ]; then
             echo "📄 Analyzing Wyoming bills..."
-            
+
             # Check if sample data exists
             if [ -d "sample_data/wy_sample" ]; then
               python openstates_scraped_data_formatter/cli_bill_tracker.py analyze \
                 --show-summary \
                 --verbose \
                 --output "wyoming_llm_analysis_$(date +%Y%m%d_%H%M%S).json"
-              
+
               echo "✅ Wyoming analysis complete"
             else
               echo "⚠️ No Wyoming sample data found"
             fi
           fi
-          
+
           # Future: Add other states here
           # if [ "${{ inputs.state }}" = "all" ]; then
           #   echo "📄 Analyzing all available states..."
@@ -122,11 +122,11 @@ jobs:
           script: |
             const fs = require('fs');
             let summary = '🤖 LLM Bill Analysis Complete\n\n';
-            
+
             try {
               const files = fs.readdirSync('.');
               const jsonFiles = files.filter(f => f.endsWith('.json'));
-              
+
               if (jsonFiles.length > 0) {
                 summary += '📄 Generated Reports:\n';
                 jsonFiles.forEach(file => {
@@ -138,11 +138,11 @@ jobs:
             } catch (error) {
               summary += '⚠️ Could not read generated files\n';
             }
-            
+
             summary += `\n📊 State: \`${{ inputs.state }}\``;
             summary += `\n🕒 Run ID: \`${{ github.run_id }}\``;
             summary += '\n\n💡 Download artifacts to view detailed reports';
-            
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,

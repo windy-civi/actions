@@ -54,11 +54,13 @@ python openstates_scraped_data_formatter/cli_bill_tracker.py analyze --show-summ
 ## 📊 What You'll Get
 
 ### GitHub Actions Output:
+
 - **Artifacts**: Downloadable JSON reports
 - **Logs**: Detailed analysis progress
 - **Summary**: Overview of what was analyzed
 
 ### Report Contents:
+
 - Bill summaries and key provisions
 - Version change tracking
 - Human-readable change summaries
@@ -75,15 +77,18 @@ Monitor your OpenAI usage at: https://platform.openai.com/usage
 ## 🔧 Troubleshooting
 
 ### No API Key Provided
+
 - System runs in "mock mode"
 - Shows structure but no real LLM analysis
 - Good for testing the workflow
 
 ### Missing Dependencies
+
 - Workflow automatically installs required packages
 - Check logs for any installation errors
 
 ### No Sample Data
+
 - Ensure `sample_data/wy_sample/` exists
 - Add your bill data to the repository
 

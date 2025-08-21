@@ -1,27 +1,27 @@
-name: 'LLM Analysis Action'
-description: 'Analyzes legislative bills using LLM for summarization and change tracking'
+name: "LLM Analysis Action"
+description: "Analyzes legislative bills using LLM for summarization and change tracking"
 
 inputs:
   state:
-    description: 'State to analyze'
+    description: "State to analyze"
     required: true
-    default: 'wy'
+    default: "wy"
   analyze-versions:
-    description: 'Analyze bill versions and track changes'
+    description: "Analyze bill versions and track changes"
     required: false
-    default: 'true'
+    default: "true"
   generate-reports:
-    description: 'Generate human-readable reports'
+    description: "Generate human-readable reports"
     required: false
-    default: 'true'
+    default: "true"
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.11'
+        python-version: "3.11"
 
     - name: Install dependencies
       shell: bash
@@ -46,24 +46,24 @@ runs:
         echo "State: ${{ inputs.state }}"
         echo "Analyze versions: ${{ inputs.analyze-versions }}"
         echo "Generate reports: ${{ inputs.generate-reports }}"
-        
+
         # For now, run the Wyoming analysis
         if [ "${{ inputs.state }}" = "wy" ] || [ "${{ inputs.state }}" = "all" ]; then
           echo "📄 Analyzing Wyoming bills..."
-          
+
           # Check if sample data exists
           if [ -d "sample_data/wy_sample" ]; then
             python openstates_scraped_data_formatter/cli_bill_tracker.py analyze \
               --show-summary \
               --verbose \
               --output "wyoming_llm_analysis_$(date +%Y%m%d_%H%M%S).json"
-            
+
             echo "✅ Wyoming analysis complete"
           else
             echo "⚠️ No Wyoming sample data found"
           fi
         fi
-        
+
         # Future: Add other states here
         # if [ "${{ inputs.state }}" = "all" ]; then
         #   echo "📄 Analyzing all available states..."

@@ -23,7 +23,7 @@ jobs:
   trigger-llm-analysis:
     name: Trigger LLM Analysis in Main Repo
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Trigger LLM Analysis Workflow
         uses: actions/github-script@v7
@@ -31,7 +31,7 @@ jobs:
           script: |
             const workflow_id = 'llm-bill-analysis.yml';
             const ref = 'llm-bill-tracker'; // or 'main' depending on which branch has the workflow
-            
+
             try {
               const response = await github.rest.actions.createWorkflowDispatch({
                 owner: 'windy-civi',
@@ -44,15 +44,15 @@ jobs:
                   'generate-reports': '${{ inputs.generate-reports }}'
                 }
               });
-              
+
               console.log('✅ Successfully triggered LLM analysis workflow');
               console.log('📊 Check the main repository for results');
-              
+
             } catch (error) {
               console.error('❌ Failed to trigger workflow:', error.message);
               core.setFailed('Failed to trigger LLM analysis workflow');
             }
-      
+
       - name: Provide Instructions
         run: |
           echo "🤖 LLM Analysis Workflow Triggered!"
