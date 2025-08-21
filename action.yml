@@ -58,30 +58,31 @@ runs:
         else
           echo "📄 Analyzing bills for state: ${{ inputs.state }}"
 
-                          # Check if data_processed exists (from state repository)
-        if [ -d "data_output/data_processed" ]; then
-          echo "📄 Found data_processed directory, analyzing bills for state: ${{ inputs.state }}"
+          # Check if data_processed exists (from state repository)
+          if [ -d "data_output/data_processed" ]; then
+            echo "📄 Found data_processed directory, analyzing bills for state: ${{ inputs.state }}"
 
-          # Run analysis on the processed data
-          python ${{ github.action_path }}/openstates_scraped_data_formatter/cli_bill_tracker.py analyze \
-            --show-summary \
-            --verbose \
-            --output "${{ inputs.state }}_llm_analysis_$(date +%Y%m%d_%H%M%S).json"
+            # Run analysis on the processed data
+            python ${{ github.action_path }}/openstates_scraped_data_formatter/cli_bill_tracker.py analyze \
+              --show-summary \
+              --verbose \
+              --output "${{ inputs.state }}_llm_analysis_$(date +%Y%m%d_%H%M%S).json"
 
-          echo "✅ ${{ inputs.state }} analysis complete"
-        elif [ -d "sample_data" ]; then
-          echo "📄 Found sample data, analyzing for testing..."
+            echo "✅ ${{ inputs.state }} analysis complete"
+          elif [ -d "sample_data" ]; then
+            echo "📄 Found sample data, analyzing for testing..."
 
-          python ${{ github.action_path }}/openstates_scraped_data_formatter/cli_bill_tracker.py analyze \
-            --show-summary \
-            --verbose \
-            --output "${{ inputs.state }}_sample_analysis_$(date +%Y%m%d_%H%M%S).json"
+            python ${{ github.action_path }}/openstates_scraped_data_formatter/cli_bill_tracker.py analyze \
+              --show-summary \
+              --verbose \
+              --output "${{ inputs.state }}_sample_analysis_$(date +%Y%m%d_%H%M%S).json"
 
-          echo "✅ ${{ inputs.state }} sample analysis complete"
-        else
-          echo "⚠️ No data found - neither data_output/data_processed nor sample_data"
-          echo "📁 Available directories:"
-          ls -la
+            echo "✅ ${{ inputs.state }} sample analysis complete"
+          else
+            echo "⚠️ No data found - neither data_output/data_processed nor sample_data"
+            echo "📁 Available directories:"
+            ls -la
+          fi
         fi
 
     - name: Upload analysis reports
