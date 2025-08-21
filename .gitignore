@@ -55,4 +55,5 @@ sample_data/version_comparison*.json
 # Temporary files
 *.tmp
 *.temp
+file_structure.md
 
