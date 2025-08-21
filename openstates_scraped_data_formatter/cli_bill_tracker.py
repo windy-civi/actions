@@ -71,10 +71,14 @@ def analyze(state, output, api_key, show_summary, verbose):
     # Find all bill metadata files in the correct structure
     # Look for: data_processed/country:us/state:{state}/sessions/*/bills/*/metadata.json
     bill_metadata_files = list(
-        data_processed_path.glob(f"country:us/state:{state}/sessions/*/bills/*/metadata.json")
+        data_processed_path.glob(
+            f"country:us/state:{state}/sessions/*/bills/*/metadata.json"
+        )
     )
     if not bill_metadata_files:
-        click.echo(f"❌ No bill metadata files found in {data_processed_path}", err=True)
+        click.echo(
+            f"❌ No bill metadata files found in {data_processed_path}", err=True
+        )
         click.echo(
             "Expected structure: data_processed/country:us/state:*/sessions/*/bills/*/metadata.json",
             err=True,
@@ -89,7 +93,7 @@ def analyze(state, output, api_key, show_summary, verbose):
 
     # Analyze each bill metadata file
     results = []
-    for metadata_file in bill_metadata_files[:10]:  # Limit to first 10 bills for now
+    for metadata_file in bill_metadata_files:  # Analyze all bills
         if verbose:
             click.echo(f"📋 Analyzing {metadata_file.parent.name}...")
 
