@@ -51,17 +51,31 @@ runs:
         if [ "${{ inputs.state }}" = "wy" ] || [ "${{ inputs.state }}" = "all" ]; then
           echo "📄 Analyzing Wyoming bills..."
 
-          # Check if sample data exists
-          if [ -d "sample_data/wy_sample" ]; then
-            python openstates_scraped_data_formatter/cli_bill_tracker.py analyze \
-              --show-summary \
-              --verbose \
-              --output "wyoming_llm_analysis_$(date +%Y%m%d_%H%M%S).json"
+                  # Check if data_processed exists (from Wyoming repository)
+        if [ -d "data_output/data_processed" ]; then
+          echo "📄 Found data_processed directory, analyzing bills..."
+          
+          # Run analysis on the processed data
+          python openstates_scraped_data_formatter/cli_bill_tracker.py analyze \
+            --show-summary \
+            --verbose \
+            --output "wyoming_llm_analysis_$(date +%Y%m%d_%H%M%S).json"
 
-            echo "✅ Wyoming analysis complete"
-          else
-            echo "⚠️ No Wyoming sample data found"
-          fi
+          echo "✅ Wyoming analysis complete"
+        elif [ -d "sample_data/wy_sample" ]; then
+          echo "📄 Found sample data, analyzing for testing..."
+          
+          python openstates_scraped_data_formatter/cli_bill_tracker.py analyze \
+            --show-summary \
+            --verbose \
+            --output "wyoming_llm_analysis_$(date +%Y%m%d_%H%M%S).json"
+
+          echo "✅ Wyoming sample analysis complete"
+        else
+          echo "⚠️ No data found - neither data_output/data_processed nor sample_data/wy_sample"
+          echo "📁 Available directories:"
+          ls -la
+        fi
         fi
 
         # Future: Add other states here
