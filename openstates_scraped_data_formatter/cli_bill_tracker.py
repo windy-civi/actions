@@ -68,65 +68,66 @@ def analyze(state, output, api_key, show_summary, verbose):
         click.echo("Make sure the data pipeline has been run first", err=True)
         return 1
 
-    # Find all bill files in the correct structure
-    # Look for: data_processed/country:us/state:{state}/sessions/*/bills/*.json
-    bill_files = list(
-        data_processed_path.glob(f"country:us/state:{state}/sessions/*/bills/*.json")
+    # Find all bill metadata files in the correct structure
+    # Look for: data_processed/country:us/state:{state}/sessions/*/bills/*/metadata.json
+    bill_metadata_files = list(
+        data_processed_path.glob(f"country:us/state:{state}/sessions/*/bills/*/metadata.json")
     )
-    if not bill_files:
-        click.echo(f"❌ No bill files found in {data_processed_path}", err=True)
+    if not bill_metadata_files:
+        click.echo(f"❌ No bill metadata files found in {data_processed_path}", err=True)
         click.echo(
-            "Expected structure: data_processed/country:us/state:*/sessions/*/bills/*.json",
+            "Expected structure: data_processed/country:us/state:*/sessions/*/bills/*/metadata.json",
             err=True,
         )
         return 1
 
     if verbose:
-        click.echo(f"📄 Found {len(bill_files)} bill files")
+        click.echo(f"📄 Found {len(bill_metadata_files)} bill metadata files")
 
     # Initialize LLM agent
     agent = SimpleLLMAgent(api_key)
 
-    # Analyze each bill file
+    # Analyze each bill metadata file
     results = []
-    for bill_file in bill_files[:10]:  # Limit to first 10 bills for now
+    for metadata_file in bill_metadata_files[:10]:  # Limit to first 10 bills for now
         if verbose:
-            click.echo(f"📋 Analyzing {bill_file.name}...")
+            click.echo(f"📋 Analyzing {metadata_file.parent.name}...")
 
         try:
-            with open(bill_file, "r") as f:
+            with open(metadata_file, "r") as f:
                 metadata = json.load(f)
 
             # Extract session and state info from path
-            path_parts = bill_file.parts
+            path_parts = metadata_file.parts
             state_part = next(
                 (part for part in path_parts if part.startswith("state:")), "unknown"
             )
             session_part = next(
                 (part for part in path_parts if part.isdigit()), "unknown"
             )
+            bill_id = metadata_file.parent.name  # The bill folder name (e.g., HB0001)
 
             # Analyze the bill metadata
             analysis = agent.analyze_bill_content(
                 str(metadata),
-                f"Bill {bill_file.stem} from {state_part} session {session_part}",
+                f"Bill {bill_id} from {state_part} session {session_part}",
             )
 
             results.append(
                 {
-                    "bill_id": bill_file.stem,
+                    "bill_id": bill_id,
                     "state": state_part,
                     "session": session_part,
-                    "file_path": str(bill_file),
+                    "file_path": str(metadata_file),
                     "analysis": analysis,
                 }
             )
 
             if verbose:
-                click.echo(f"✅ Analyzed {bill_file.name}")
+                click.echo(f"✅ Analyzed {bill_id}")
         except Exception as e:
             if verbose:
-                click.echo(f"❌ Error analyzing {bill_file.name}: {e}")
+                click.echo(f"❌ Error analyzing {metadata_file.parent.name}: {e}")
             continue
 
     # Save results
