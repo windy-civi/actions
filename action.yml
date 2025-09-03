@@ -67,6 +67,7 @@ runs:
               --state "${{ inputs.state }}" \
               --show-summary \
               --verbose \
+              --download-pdfs \
               --output "${{ inputs.state }}_llm_analysis_$(date +%Y%m%d_%H%M%S).json"
 
             echo "✅ ${{ inputs.state }} analysis complete"
@@ -77,6 +78,7 @@ runs:
               --state "${{ inputs.state }}" \
               --show-summary \
               --verbose \
+              --download-pdfs \
               --output "${{ inputs.state }}_sample_analysis_$(date +%Y%m%d_%H%M%S).json"
 
             echo "✅ ${{ inputs.state }} sample analysis complete"
