@@ -52,6 +52,9 @@ sample_data/files_from_links/*.xml
 sample_data/version_comparison*.json
 *.log
 
+# Project documentation (local development notes)
+project_docs/
+
 # Temporary files
 *.tmp
 *.temp
