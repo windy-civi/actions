@@ -6,7 +6,7 @@ inputs:
     description: "State to process (2-letter abbreviation or 'usa')"
     required: true
   github-token:
-    description: "GitHub token for authentication (optional; default GITHUB_TOKEN is fine)"
+    description: "GitHub token for authentication (optional)"
     required: false
   use-scrape-cache:
     description: "Use OpenStates scraper cache"
@@ -23,29 +23,20 @@ runs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        # Must match Pipfile [requires]
-        python-version: "3.13"
-
-    - name: Cache pip
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles(format('{0}/Pipfile.lock', github.action_path)) }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
+        python-version: "3.13" # must match Pipfile [requires]
 
     - name: Install dependencies (pipenv)
       shell: bash
       working-directory: ${{ github.action_path }}
       env:
-        PIPENV_VENV_IN_PROJECT: "1" # Keep venv inside the action dir
-        PIPENV_IGNORE_VIRTUALENVS: "1" # Let pipenv control the venv
+        PIPENV_VENV_IN_PROJECT: "1"
+        PIPENV_IGNORE_VIRTUALENVS: "1"
       run: |
         set -euo pipefail
         python -m pip install --upgrade pip
         pip install pipenv
-        # Use the committed lockfile for deterministic installs
-        pipenv sync --deploy
+        # Use the committed lockfile; fail if out of date
+        pipenv install --deploy --dev
 
     - name: Scrape Data
       shell: bash
@@ -67,11 +58,10 @@ runs:
       run: |
         set -euo pipefail
         echo "🧹 Formatting data for blockchain-style output"
-        # Keep the original invocation style to avoid surprising changes
         pipenv run python openstates_scraped_data_formatter/main.py
         echo "✅ Data formatting complete"
 
-    # IMPORTANT: Run commits from the CALLER repo workspace (default working dir).
+    # Commit/push must happen in the CALLER repo (default working dir)
     - name: Commit Changes
       shell: bash
       run: |
@@ -80,7 +70,6 @@ runs:
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
 
-        # Add the usual paths, but don't fail if they don't exist
         git add data_output/ bill_session_mapping/ sessions/ || true
 
         if git diff --staged --quiet; then
