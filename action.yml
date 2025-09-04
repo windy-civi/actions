@@ -92,7 +92,6 @@ runs:
         else
           echo "SCRAPE_TARBALL=absent" >> "${GITHUB_ENV}"
           echo "ℹ️ No new files found; will use nightly fallback."
-les found; will use nightly fallback."
         fi
 
         # Do not fail the job; proceed with fallback or partial data
@@ -255,4 +254,3 @@ les found; will use nightly fallback."
             git push origin main
           fi
         fi
-
