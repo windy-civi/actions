@@ -76,8 +76,23 @@ runs:
         done
 
         # If anything was scraped, stage a tarball; otherwise fall back later
-        if [ -d "_working/_data/${{ inputs.state }}" ] && \
-           find "_working/_data/${{ inputs.state }}" -type f -name '*.json' | grep -q .; then
+        JSON_DIR="_working/_data/${{ inputs.state }}"
+        if [ -d "$JSON_DIR" ]; then
+          COUNT_JSON=$(find "$JSON_DIR" -type f -name '*.json' | wc -l | tr -d ' ')
+        else
+          COUNT_JSON=0
+        fi
+        echo "Found ${COUNT_JSON} JSON files in $JSON_DIR"
+        if [ "$COUNT_JSON" -gt 0 ]; then
+          tar zcf scrape-snapshot-nightly.tgz --mode=755 -C "$JSON_DIR" .
+          # put it in workspace so later steps can use a single path
+          cp scrape-snapshot-nightly.tgz "${GITHUB_WORKSPACE}/scrape-snapshot-nightly.tgz"
+          echo "SCRAPE_TARBALL=present" >> "${GITHUB_ENV}"
+          echo "✅ Created local scrape tarball"
+        else
+          echo "SCRAPE_TARBALL=absent" >> "${GITHUB_ENV}"
+          echo "ℹ️ No new files found; will use nightly fallback."
+        find "_working/_data/${{ inputs.state }}" -type f -name '*.json' | grep -q .; then
           tar zcf scrape-snapshot-nightly.tgz --mode=755 -C "_working/_data/${{ inputs.state }}" .
           # put it in workspace so later steps can use a single path
           cp scrape-snapshot-nightly.tgz "${GITHUB_WORKSPACE}/scrape-snapshot-nightly.tgz"
