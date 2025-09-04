@@ -1,5 +1,5 @@
 name: "OpenStates Data Pipeline"
-description: "Scrape via Docker, persist nightly artifact, format to blockchain layout, and push to caller repo"
+description: "Scrape via Docker, persist nightly artifact (rolling + immutable), format to blockchain layout, and push to caller repo"
 
 inputs:
   state:
@@ -54,6 +54,9 @@ runs:
         set -euo pipefail
         mkdir -p _working/_data _working/_cache
 
+        # Persist image tag for later steps (manifest)
+        echo "DOCKER_IMAGE_TAG=${DOCKER_IMAGE_TAG}" >> "${GITHUB_ENV}"
+
         echo "🕷️ Scraping ${{ inputs.state }} (with retries + DNS override)..."
         exit_code=1
         for i in 1 2 3; do
@@ -78,10 +81,10 @@ runs:
           tar zcf scrape-snapshot-nightly.tgz --mode=755 -C "_working/_data/${{ inputs.state }}" .
           # put it in workspace so later steps can use a single path
           cp scrape-snapshot-nightly.tgz "${GITHUB_WORKSPACE}/scrape-snapshot-nightly.tgz"
-          echo "SCRAPE_TARBALL=present" >> "$GITHUB_ENV"
+          echo "SCRAPE_TARBALL=present" >> "${GITHUB_ENV}"
           echo "✅ Created local scrape tarball"
         else
-          echo "SCRAPE_TARBALL=absent" >> "$GITHUB_ENV"
+          echo "SCRAPE_TARBALL=absent" >> "${GITHUB_ENV}"
           echo "ℹ️ No new files found; will use nightly fallback."
         fi
 
@@ -90,7 +93,7 @@ runs:
           echo "::warning::Scrape step exited non-zero; continuing with fallback/nightly artifact."
         fi
 
-    - name: Upload scraped artifact
+    - name: Upload scraped artifact (rolling)
       if: inputs.use-scrape-cache != 'true' && env.SCRAPE_TARBALL == 'present'
       uses: actions/upload-artifact@v4
       with:
@@ -98,7 +101,7 @@ runs:
         path: ${{ github.workspace }}/scrape-snapshot-nightly.tgz
         retention-days: 30
 
-    - name: Update nightly release
+    - name: Update nightly release (rolling)
       if: inputs.use-scrape-cache != 'true' && env.SCRAPE_TARBALL == 'present'
       uses: andelf/nightly-release@v1
       env:
@@ -109,6 +112,43 @@ runs:
         prerelease: false
         files: |
           ${{ github.workspace }}/scrape-snapshot-nightly.tgz
+
+    - name: Build archive manifest (immutable)
+      if: env.SCRAPE_TARBALL == 'present'
+      shell: bash
+      run: |
+        set -euo pipefail
+        SNAP_DATE=$(date -u +'%Y-%m-%d')
+        echo "SNAP_DATE=${SNAP_DATE}" >> "${GITHUB_ENV}"
+
+        # Count JSON files inside the tarball without extracting
+        COUNT=$(tar tzf "${GITHUB_WORKSPACE}/scrape-snapshot-nightly.tgz" | grep -E '\\.json$' | wc -l | tr -d ' ')
+        SHA256=$(sha256sum "${GITHUB_WORKSPACE}/scrape-snapshot-nightly.tgz" | cut -d' ' -f1)
+
+        cat > "${GITHUB_WORKSPACE}/scrape-manifest.json" <<JSON
+        {
+          "state": "${{ inputs.state }}",
+          "date_utc": "${SNAP_DATE}",
+          "files": ${COUNT},
+          "sha256": "${SHA256}",
+          "source_image": "openstates/scrapers:${DOCKER_IMAGE_TAG}"
+        }
+JSON
+        echo "🧾 Manifest written: scrape-manifest.json"
+
+    - name: Publish immutable archive (date-stamped release)
+      if: env.SCRAPE_TARBALL == 'present'
+      uses: softprops/action-gh-release@v2
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      with:
+        tag_name: archive-${{ inputs.state }}-${{ env.SNAP_DATE }}
+        name: "Archive ${{ inputs.state }} ${{ env.SNAP_DATE }}"
+        draft: false
+        prerelease: false
+        files: |
+          ${{ github.workspace }}/scrape-snapshot-nightly.tgz
+          ${{ github.workspace }}/scrape-manifest.json
 
     # Only download the nightly if we did NOT produce a fresh local tarball
     - name: Download nightly artifact (fallback)
@@ -135,7 +175,6 @@ runs:
       run: |
         set -euo pipefail
         mkdir -p "${RUNNER_TEMP}/scrape-snapshot-nightly"
-        # The tarball is now always at $GITHUB_WORKSPACE/scrape-snapshot-nightly.tgz
         tar xzf "${GITHUB_WORKSPACE}/scrape-snapshot-nightly.tgz" -C "${RUNNER_TEMP}/scrape-snapshot-nightly"
         echo "✅ Extraction complete"
 
@@ -184,6 +223,12 @@ runs:
           --openstates-data-folder "$OPENSTATE_DATA_FOLDER" \
           --git-repo-folder "$GIT_REPO_FOLDER"
 
+    - name: Clean ephemeral build dirs
+      shell: bash
+      run: |
+        set -euo pipefail
+        rm -rf bill_session_mapping sessions || true
+
     - name: Commit & push to caller repo
       shell: bash
       run: |
@@ -191,7 +236,8 @@ runs:
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
 
-        git add data_output/ bill_session_mapping/ sessions/ || true
+        # Only commit the actual deliverables
+        git add data_output/ || true
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
