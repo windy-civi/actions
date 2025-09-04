@@ -1,31 +1,121 @@
-name: "Data Pipeline Action"
-description: "Scrapes, cleans, and formats state legislative data from OpenStates"
+name: "OpenStates Data Pipeline"
+description: "Scrape via Docker, persist nightly artifact, format to blockchain layout, and push to caller repo"
 
 inputs:
   state:
-    description: "State to process (2-letter abbreviation or 'usa')"
+    description: "State abbreviation (e.g., id, il, tx, ny, or 'usa')"
     required: true
   github-token:
-    description: "GitHub token for authentication (optional)"
-    required: false
+    description: "GitHub token for releases/artifacts"
+    required: true
+    default: "${{ github.token }}"
   use-scrape-cache:
-    description: "Use OpenStates scraper cache"
+    description: "Skip scraping and reuse the latest nightly artifact"
     required: false
     default: "false"
   force-update:
-    description: "Force push changes even if there are upstream changes"
+    description: "Force push even if upstream changed"
     required: false
     default: "false"
 
 runs:
   using: "composite"
   steps:
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - name: Setup Python
+      uses: actions/setup-python@v5
       with:
-        python-version: "3.13" # must match Pipfile [requires]
+        python-version: "3.13"
 
-    - name: Install dependencies (pipenv)
+    - name: Prep working dirs
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p "${RUNNER_TEMP}/_working/_data" "${RUNNER_TEMP}/_working/_cache"
+        mkdir -p "${RUNNER_TEMP}/scrape-snapshot-nightly"
+        echo "Working root: ${RUNNER_TEMP}"
+
+    - name: Cache scrapes (best-effort)
+      if: inputs.use-scrape-cache != 'true'
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/_working/_cache
+        key: cache-scrapes-${{ inputs.state }}-${{ github.sha }}
+        restore-keys: |
+          cache-scrapes-${{ inputs.state }}-
+          cache-scrapes-
+
+    - name: Scrape data with Docker
+      if: inputs.use-scrape-cache != 'true'
+      shell: bash
+      working-directory: ${{ runner.temp }}
+      env:
+        DOCKER_IMAGE_TAG: 6a0ce774f2c12b7fa61b25d6c964212dfe3b636c
+      run: |
+        set -euo pipefail
+        echo "🕷️ Scraping ${{ inputs.state }} via openstates/scrapers:${DOCKER_IMAGE_TAG}"
+        docker pull openstates/scrapers:${DOCKER_IMAGE_TAG}
+        docker run \
+          -v "$(pwd)/_working/_data":/opt/openstates/openstates/_data \
+          -v "$(pwd)/_working/_cache":/opt/openstates/openstates/_cache \
+          openstates/scrapers:${DOCKER_IMAGE_TAG} \
+          ${{ inputs.state }} bills --scrape --fastmode
+        echo "📦 Archiving scraped data..."
+        tar zcf scrape-snapshot-nightly.tgz --mode=755 -C _working/_data/${{ inputs.state }} .
+
+    - name: Upload scraped artifact
+      if: inputs.use-scrape-cache != 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: scrape-snapshot-nightly
+        path: ${{ runner.temp }}/scrape-snapshot-nightly.tgz
+        retention-days: 30
+
+    - name: Update nightly release
+      if: inputs.use-scrape-cache != 'true'
+      uses: andelf/nightly-release@v1
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      with:
+        tag_name: nightly
+        name: "Nightly OpenStates scrape"
+        prerelease: false
+        files: |
+          ${{ runner.temp }}/scrape-snapshot-nightly.tgz
+
+    - name: Download nightly artifact
+      uses: Xotl/cool-github-releases@v1
+      with:
+        mode: download
+        tag_name: nightly
+        assets: scrape-snapshot-nightly.tgz
+        github_token: ${{ inputs.github-token }}
+
+    - name: Extract nightly artifact
+      shell: bash
+      run: |
+        set -euo pipefail
+        tar xzf scrape-snapshot-nightly.tgz -C "${RUNNER_TEMP}/scrape-snapshot-nightly"
+        rm scrape-snapshot-nightly.tgz
+
+    - name: Ensure jq present
+      shell: bash
+      run: |
+        set -euo pipefail
+        command -v jq >/dev/null 2>&1 || sudo apt-get update && sudo apt-get install -y jq
+
+    - name: Sanitize scraped JSON (_id, scraped_at)
+      shell: bash
+      working-directory: ${{ runner.temp }}/scrape-snapshot-nightly
+      run: |
+        set -euo pipefail
+        cnt=0
+        find . -type f -name "*.json" -print0 | while IFS= read -r -d '' f; do
+          jq 'del(..|._id?, .scraped_at?)' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+          cnt=$((cnt+1))
+        done
+        echo "Sanitized $cnt files"
+
+    - name: Install formatter deps (pipenv)
       shell: bash
       working-directory: ${{ github.action_path }}
       env:
@@ -35,51 +125,37 @@ runs:
         set -euo pipefail
         python -m pip install --upgrade pip
         pip install pipenv
-        # Use the committed lockfile; fail if out of date
         pipenv install --deploy --dev
 
-    - name: Scrape Data
+    - name: Run formatter
       shell: bash
-      working-directory: ${{ github.action_path }}
       env:
-        STATE: ${{ inputs.state }}
-        USE_SCRAPE_CACHE: ${{ inputs.use-scrape-cache }}
-      run: |
-        set -euo pipefail
-        echo "🔍 Scraping data for state: ${STATE}"
-        pipenv run python -m openstates.cli.scrape "${STATE}"
-        echo "✅ Data scraping complete"
-
-    - name: Format Data
-      shell: bash
-      working-directory: ${{ github.action_path }}
-      env:
+        OPENSTATE_DATA_FOLDER: ${{ runner.temp }}/scrape-snapshot-nightly
+        GIT_REPO_FOLDER: ${{ github.workspace }}
         STATE: ${{ inputs.state }}
       run: |
         set -euo pipefail
-        echo "🧹 Formatting data for blockchain-style output"
-        pipenv run python openstates_scraped_data_formatter/main.py
-        echo "✅ Data formatting complete"
+        cd "${{ github.action_path }}"
+        pipenv run python openstates_scraped_data_formatter/main.py \
+          --state "$STATE" \
+          --openstates-data-folder "$OPENSTATE_DATA_FOLDER" \
+          --git-repo-folder "$GIT_REPO_FOLDER"
 
-    # Commit/push must happen in the CALLER repo (default working dir)
-    - name: Commit Changes
+    - name: Commit & push to caller repo
       shell: bash
       run: |
         set -euo pipefail
-        echo "📝 Committing formatted data"
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
 
         git add data_output/ bill_session_mapping/ sessions/ || true
-
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
-          git commit -m "Update data for ${{ inputs.state }} - $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          git commit -m "Automated OpenStates data update for ${{ inputs.state }}"
           if [ "${{ inputs.force-update }}" = "true" ]; then
             git push --force-with-lease origin main
           else
             git push origin main
           fi
-          echo "✅ Changes committed and pushed"
         fi
