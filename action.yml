@@ -3,13 +3,13 @@ description: "Scrapes, cleans, and formats state legislative data from OpenState
 
 inputs:
   state:
-    description: "State to process (2-letter abbreviation)"
+    description: "State to process (2-letter abbreviation or 'usa')"
     required: true
   github-token:
-    description: "GitHub token for authentication"
-    required: true
+    description: "GitHub token for authentication (optional; default GITHUB_TOKEN is fine)"
+    required: false
   use-scrape-cache:
-    description: "Use open states scraper cache"
+    description: "Use OpenStates scraper cache"
     required: false
     default: "false"
   force-update:
@@ -23,66 +23,74 @@ runs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
+        # Must match Pipfile [requires]
         python-version: "3.13"
 
-    - name: Install dependencies
+    - name: Cache pip
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles(format('{0}/Pipfile.lock', github.action_path)) }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies (pipenv)
       shell: bash
+      working-directory: ${{ github.action_path }}
+      env:
+        PIPENV_VENV_IN_PROJECT: "1" # Keep venv inside the action dir
+        PIPENV_IGNORE_VIRTUALENVS: "1" # Let pipenv control the venv
       run: |
+        set -euo pipefail
         python -m pip install --upgrade pip
         pip install pipenv
-        pipenv install --deploy
+        # Use the committed lockfile for deterministic installs
+        pipenv sync --deploy
 
     - name: Scrape Data
       shell: bash
+      working-directory: ${{ github.action_path }}
+      env:
+        STATE: ${{ inputs.state }}
+        USE_SCRAPE_CACHE: ${{ inputs.use-scrape-cache }}
       run: |
-        echo "🔍 Scraping data for state: ${{ inputs.state }}"
-
-        # Set up environment variables
-        export STATE="${{ inputs.state }}"
-        export USE_SCRAPE_CACHE="${{ inputs.use-scrape-cache }}"
-
-        # Run scraping
-        pipenv run python -m openstates.cli.scrape $STATE
-
+        set -euo pipefail
+        echo "🔍 Scraping data for state: ${STATE}"
+        pipenv run python -m openstates.cli.scrape "${STATE}"
         echo "✅ Data scraping complete"
 
     - name: Format Data
       shell: bash
+      working-directory: ${{ github.action_path }}
+      env:
+        STATE: ${{ inputs.state }}
       run: |
+        set -euo pipefail
         echo "🧹 Formatting data for blockchain-style output"
-
-        # Set up environment variables
-        export STATE="${{ inputs.state }}"
-
-        # Run formatter
+        # Keep the original invocation style to avoid surprising changes
         pipenv run python openstates_scraped_data_formatter/main.py
-
         echo "✅ Data formatting complete"
 
+    # IMPORTANT: Run commits from the CALLER repo workspace (default working dir).
     - name: Commit Changes
       shell: bash
       run: |
+        set -euo pipefail
         echo "📝 Committing formatted data"
-
-        # Configure git
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
 
-        # Add changes
-        git add data_output/ bill_session_mapping/ sessions/
+        # Add the usual paths, but don't fail if they don't exist
+        git add data_output/ bill_session_mapping/ sessions/ || true
 
-        # Commit if there are changes
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
-          git commit -m "Update data for ${{ inputs.state }} - $(date)"
-
-          # Push changes
+          git commit -m "Update data for ${{ inputs.state }} - $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           if [ "${{ inputs.force-update }}" = "true" ]; then
             git push --force-with-lease origin main
           else
             git push origin main
           fi
-
           echo "✅ Changes committed and pushed"
         fi
