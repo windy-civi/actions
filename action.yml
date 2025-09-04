@@ -1,5 +1,5 @@
-name: "OpenStates Data Pipeline"
-description: "Scrape via Docker, persist nightly artifact, format to blockchain layout, and push to caller repo"
+name: "Text Extraction from Bills"
+description: "Extract text from PDFs and XMLs in processed bill data"
 
 inputs:
   state:
@@ -9,10 +9,6 @@ inputs:
     description: "GitHub token for releases/artifacts"
     required: true
     default: "${{ github.token }}"
-  use-scrape-cache:
-    description: "Skip scraping and reuse the latest nightly artifact"
-    required: false
-    default: "false"
   force-update:
     description: "Force push even if upstream changed"
     required: false
@@ -26,138 +22,6 @@ runs:
       with:
         python-version: "3.13"
 
-    - name: Prep working dirs
-      shell: bash
-      run: |
-        set -euo pipefail
-        mkdir -p "${RUNNER_TEMP}/_working/_data" "${RUNNER_TEMP}/_working/_cache"
-        mkdir -p "${RUNNER_TEMP}/scrape-snapshot-nightly"
-        echo "Working root: ${RUNNER_TEMP}"
-
-    - name: Cache scrapes (best-effort)
-      if: inputs.use-scrape-cache != 'true'
-      uses: actions/cache@v4
-      with:
-        path: ${{ runner.temp }}/_working/_cache
-        key: cache-scrapes-${{ inputs.state }}-${{ github.sha }}
-        restore-keys: |
-          cache-scrapes-${{ inputs.state }}-
-          cache-scrapes-
-
-    - name: Scrape data with Docker (resilient)
-      if: inputs.use-scrape-cache != 'true'
-      shell: bash
-      working-directory: ${{ runner.temp }}
-      env:
-        DOCKER_IMAGE_TAG: 6a0ce774f2c12b7fa61b25d6c964212dfe3b636c
-      run: |
-        set -euo pipefail
-        mkdir -p _working/_data _working/_cache
-
-        echo "🕷️ Scraping ${{ inputs.state }} (with retries + DNS override)..."
-        exit_code=1
-        for i in 1 2 3; do
-          docker pull openstates/scrapers:${DOCKER_IMAGE_TAG} || true
-          if docker run \
-              --dns 8.8.8.8 --dns 1.1.1.1 \
-              -v "$(pwd)/_working/_data":/opt/openstates/openstates/_data \
-              -v "$(pwd)/_working/_cache":/opt/openstates/openstates/_cache \
-              openstates/scrapers:${DOCKER_IMAGE_TAG} \
-              ${{ inputs.state }} bills --scrape --fastmode
-          then
-            exit_code=0
-            break
-          fi
-          echo "⚠️ scrape attempt $i failed; sleeping 20s..."
-          sleep 20
-        done
-
-        # If anything was scraped, stage a tarball; otherwise fall back later
-        if [ -d "_working/_data/${{ inputs.state }}" ] && \
-           find "_working/_data/${{ inputs.state }}" -type f -name '*.json' | grep -q .; then
-          tar zcf scrape-snapshot-nightly.tgz --mode=755 -C "_working/_data/${{ inputs.state }}" .
-          # put it in workspace so later steps can use a single path
-          cp scrape-snapshot-nightly.tgz "${GITHUB_WORKSPACE}/scrape-snapshot-nightly.tgz"
-          echo "SCRAPE_TARBALL=present" >> "$GITHUB_ENV"
-          echo "✅ Created local scrape tarball"
-        else
-          echo "SCRAPE_TARBALL=absent" >> "$GITHUB_ENV"
-          echo "ℹ️ No new files found; will use nightly fallback."
-        fi
-
-        # Do not fail the job; proceed with fallback or partial data
-        if [ $exit_code -ne 0 ]; then
-          echo "::warning::Scrape step exited non-zero; continuing with fallback/nightly artifact."
-        fi
-
-    - name: Upload scraped artifact
-      if: inputs.use-scrape-cache != 'true' && env.SCRAPE_TARBALL == 'present'
-      uses: actions/upload-artifact@v4
-      with:
-        name: scrape-snapshot-nightly
-        path: ${{ github.workspace }}/scrape-snapshot-nightly.tgz
-        retention-days: 30
-
-    - name: Update nightly release
-      if: inputs.use-scrape-cache != 'true' && env.SCRAPE_TARBALL == 'present'
-      uses: andelf/nightly-release@v1
-      env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
-      with:
-        tag_name: nightly
-        name: "Nightly OpenStates scrape"
-        prerelease: false
-        files: |
-          ${{ github.workspace }}/scrape-snapshot-nightly.tgz
-
-    # Only download the nightly if we did NOT produce a fresh local tarball
-    - name: Download nightly artifact (fallback)
-      if: env.SCRAPE_TARBALL != 'present'
-      uses: Xotl/cool-github-releases@v1
-      with:
-        mode: download
-        tag_name: nightly
-        assets: scrape-snapshot-nightly.tgz
-        github_token: ${{ inputs.github-token }}
-
-    - name: Ensure tarball exists
-      if: env.SCRAPE_TARBALL != 'present'
-      shell: bash
-      run: |
-        set -euo pipefail
-        if [ ! -f "${GITHUB_WORKSPACE}/scrape-snapshot-nightly.tgz" ]; then
-          echo "::error::No scrape tarball found (fresh scrape failed and nightly not available)."
-          exit 1
-        fi
-
-    - name: Extract tarball for formatter
-      shell: bash
-      run: |
-        set -euo pipefail
-        mkdir -p "${RUNNER_TEMP}/scrape-snapshot-nightly"
-        # The tarball is now always at $GITHUB_WORKSPACE/scrape-snapshot-nightly.tgz
-        tar xzf "${GITHUB_WORKSPACE}/scrape-snapshot-nightly.tgz" -C "${RUNNER_TEMP}/scrape-snapshot-nightly"
-        echo "✅ Extraction complete"
-
-    - name: Ensure jq present
-      shell: bash
-      run: |
-        set -euo pipefail
-        command -v jq >/dev/null 2>&1 || sudo apt-get update && sudo apt-get install -y jq
-
-    - name: Sanitize scraped JSON (_id, scraped_at)
-      shell: bash
-      working-directory: ${{ runner.temp }}/scrape-snapshot-nightly
-      run: |
-        set -euo pipefail
-        tmpc="${RUNNER_TEMP}/san_count.txt"
-        : > "$tmpc"
-        find . -type f -name "*.json" -print0 | while IFS= read -r -d '' f; do
-          jq 'del(..|._id?, .scraped_at?)' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
-          echo 1 >> "$tmpc"
-        done
-        echo "Sanitized $(wc -l < "$tmpc") files"
-
     - name: Install formatter deps (pipenv)
       shell: bash
       working-directory: ${{ github.action_path }}
@@ -170,32 +34,43 @@ runs:
         pip install pipenv
         pipenv install --deploy --dev
 
-    - name: Run formatter
+    - name: Extract text from PDFs and XMLs
       shell: bash
       env:
-        OPENSTATE_DATA_FOLDER: ${{ runner.temp }}/scrape-snapshot-nightly
         GIT_REPO_FOLDER: ${{ github.workspace }}
         STATE: ${{ inputs.state }}
       run: |
         set -euo pipefail
         cd "${{ github.action_path }}"
+        echo "📄 Starting text extraction for $STATE..."
+        echo "Processing data in: $GIT_REPO_FOLDER/data_output/data_processed"
+
+        # Check if the data directory exists
+        if [ ! -d "$GIT_REPO_FOLDER/data_output/data_processed" ]; then
+          echo "❌ Data directory not found: $GIT_REPO_FOLDER/data_output/data_processed"
+          echo "Make sure the data pipeline has been run first"
+          exit 1
+        fi
+
+        # Run text extraction using the main.py interface
         pipenv run python openstates_scraped_data_formatter/main.py \
           --state "$STATE" \
-          --openstates-data-folder "$OPENSTATE_DATA_FOLDER" \
-          --git-repo-folder "$GIT_REPO_FOLDER"
+          --data-folder "$GIT_REPO_FOLDER/data_output/data_processed"
+        echo "✅ Text extraction complete"
 
-    - name: Commit & push to caller repo
+    - name: Commit & push extracted text
       shell: bash
       run: |
         set -euo pipefail
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
 
-        git add data_output/ bill_session_mapping/ sessions/ || true
+        # Only commit the extracted text files
+        git add data_output/ || true
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
-          git commit -m "Automated OpenStates data update for ${{ inputs.state }}"
+          git commit -m "Automated text extraction for ${{ inputs.state }}"
           if [ "${{ inputs.force-update }}" = "true" ]; then
             git push --force-with-lease origin main
           else
