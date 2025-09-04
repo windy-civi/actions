@@ -124,12 +124,32 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
+        set -x
         SNAP_DATE=$(date -u +'%Y-%m-%d')
         echo "SNAP_DATE=${SNAP_DATE}" >> "${GITHUB_ENV}"
 
-        # Count JSON files inside the tarball without extracting
-        COUNT=$(tar tzf "${GITHUB_WORKSPACE}/scrape-snapshot-nightly.tgz" | grep -E '\\.json$' | wc -l | tr -d ' ')
-        SHA256=$(sha256sum "${GITHUB_WORKSPACE}/scrape-snapshot-nightly.tgz" | cut -d' ' -f1)
+        TAR_PATH="${GITHUB_WORKSPACE}/scrape-snapshot-nightly.tgz"
+        if [ ! -f "$TAR_PATH" ]; then
+          echo "::error::Tarball not found at $TAR_PATH"
+          exit 1
+        fi
+
+        # Count JSON files inside the tarball safely (don't abort on transient tar warnings)
+        set +e
+        COUNT=$(tar tzf "$TAR_PATH" 2>/dev/null | grep -E '\.json$' | wc -l | tr -d ' ')
+        TAR_STATUS=$?
+        set -e
+        if [ "$TAR_STATUS" -ne 0 ]; then
+          echo "::warning::Could not list tar contents, setting COUNT=0"
+          COUNT=0
+        fi
+
+        # Cross-platform sha (ubuntu has sha256sum; fallback to shasum)
+        if command -v sha256sum >/dev/null 2>&1; then
+          SHA256=$(sha256sum "$TAR_PATH" | cut -d' ' -f1)
+        else
+          SHA256=$(shasum -a 256 "$TAR_PATH" | cut -d' ' -f1)
+        fi
 
         cat > "${GITHUB_WORKSPACE}/scrape-manifest.json" <<JSON
         {
@@ -142,7 +162,7 @@ runs:
         JSON
         echo "🧾 Manifest written: scrape-manifest.json"
 
-    - name: Publish immutable archive (date-stamped release)
+    - name: Publish immutable archive (date-stamped release) (date-stamped release)
       if: env.SCRAPE_TARBALL == 'present'
       uses: softprops/action-gh-release@v2
       env:
