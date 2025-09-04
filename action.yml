@@ -133,7 +133,7 @@ runs:
           "sha256": "${SHA256}",
           "source_image": "openstates/scrapers:${DOCKER_IMAGE_TAG}"
         }
-JSON
+        JSON
         echo "🧾 Manifest written: scrape-manifest.json"
 
     - name: Publish immutable archive (date-stamped release)
