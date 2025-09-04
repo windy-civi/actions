@@ -17,9 +17,9 @@ runs:
   using: "composite"
   steps:
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
-        python-version: "3.11"
+        python-version: "3.13"
 
     - name: Install dependencies
       shell: bash
@@ -32,43 +32,43 @@ runs:
       shell: bash
       run: |
         echo "📄 Extracting text from PDFs and XMLs for ${{ inputs.state }}"
-        
+
         # Check if the data directory exists
         if [ ! -d "data_output/data_processed" ]; then
           echo "❌ Data directory not found: data_output/data_processed"
           echo "Make sure the data pipeline has been run first"
           exit 1
         fi
-        
+
         # Run text extraction on the processed data
         pipenv run python openstates_scraped_data_formatter/utils/text_extraction.py data_output/data_processed
-        
+
         echo "✅ Text extraction complete"
 
     - name: Commit Changes
       shell: bash
       run: |
         echo "📝 Committing extracted text files"
-        
+
         # Configure git
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        
+
         # Add changes
         git add data_output/
-        
+
         # Commit if there are changes
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
           git commit -m "Extract text from PDFs/XMLs for ${{ inputs.state }} - $(date)"
-          
+
           # Push changes
           if [ "${{ inputs.force-update }}" = "true" ]; then
             git push --force-with-lease origin main
           else
             git push origin main
           fi
-          
+
           echo "✅ Changes committed and pushed"
         fi
