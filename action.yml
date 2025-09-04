@@ -92,15 +92,7 @@ runs:
         else
           echo "SCRAPE_TARBALL=absent" >> "${GITHUB_ENV}"
           echo "ℹ️ No new files found; will use nightly fallback."
-        find "_working/_data/${{ inputs.state }}" -type f -name '*.json' | grep -q .; then
-          tar zcf scrape-snapshot-nightly.tgz --mode=755 -C "_working/_data/${{ inputs.state }}" .
-          # put it in workspace so later steps can use a single path
-          cp scrape-snapshot-nightly.tgz "${GITHUB_WORKSPACE}/scrape-snapshot-nightly.tgz"
-          echo "SCRAPE_TARBALL=present" >> "${GITHUB_ENV}"
-          echo "✅ Created local scrape tarball"
-        else
-          echo "SCRAPE_TARBALL=absent" >> "${GITHUB_ENV}"
-          echo "ℹ️ No new files found; will use nightly fallback."
+les found; will use nightly fallback."
         fi
 
         # Do not fail the job; proceed with fallback or partial data
@@ -263,3 +255,4 @@ runs:
             git push origin main
           fi
         fi
+
