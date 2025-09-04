@@ -18,6 +18,7 @@ pdfplumber = "*"
 PyPDF2 = "*"
 PyMuPDF = "*"
 beautifulsoup4 = "*"
+openstates = "*"
 
 [dev-packages]
 
