@@ -297,14 +297,14 @@ def try_chatgpt_style_download(url: str) -> Optional[str]:
     """Try downloading using ChatGPT-style request patterns."""
     try:
         print(f"   🔄 Trying ChatGPT-style download for {url}")
-        
+
         # Create a new session with ChatGPT-style headers
         session = requests.Session()
         headers = get_chatgpt_style_headers()
-        
+
         # Add some ChatGPT-like behavior patterns
         time.sleep(random.uniform(2.0, 4.0))  # ChatGPT-like delay
-        
+
         # Make the request with ChatGPT-style headers
         response = session.get(
             url,
@@ -313,16 +313,98 @@ def try_chatgpt_style_download(url: str) -> Optional[str]:
             verify=False,
             allow_redirects=True,
         )
-        
+
         if response.status_code == 200:
             print(f"   ✅ ChatGPT-style download successful")
             return response.text
         else:
             print(f"   ❌ ChatGPT-style download failed: {response.status_code}")
             return None
-            
+
     except Exception as e:
         print(f"   ❌ ChatGPT-style download error: {e}")
+        return None
+
+
+def try_alternative_approach(url: str) -> Optional[str]:
+    """Try alternative approaches for congress.gov blocking."""
+    try:
+        print(f"   🔄 Trying alternative approach for {url}")
+        
+        # Try with a completely different approach - simulate a mobile app
+        mobile_headers = {
+            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Accept-Encoding": "gzip, deflate",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+        }
+        
+        session = requests.Session()
+        time.sleep(random.uniform(3.0, 6.0))
+        
+        response = session.get(
+            url,
+            headers=mobile_headers,
+            timeout=60,
+            verify=False,
+            allow_redirects=True,
+        )
+        
+        if response.status_code == 200:
+            print(f"   ✅ Alternative approach successful")
+            return response.text
+        else:
+            print(f"   ❌ Alternative approach failed: {response.status_code}")
+            return None
+            
+    except Exception as e:
+        print(f"   ❌ Alternative approach error: {e}")
+        return None
+
+
+def try_government_style_request(url: str) -> Optional[str]:
+    """Try with headers that might look like government/academic access."""
+    try:
+        print(f"   🔄 Trying government-style request for {url}")
+        
+        # Headers that might look like government/academic access
+        gov_headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Sec-Fetch-User": "?1",
+            "Cache-Control": "max-age=0",
+            "Referer": "https://www.congress.gov/",
+        }
+        
+        session = requests.Session()
+        time.sleep(random.uniform(4.0, 8.0))
+        
+        response = session.get(
+            url,
+            headers=gov_headers,
+            timeout=60,
+            verify=False,
+            allow_redirects=True,
+        )
+        
+        if response.status_code == 200:
+            print(f"   ✅ Government-style request successful")
+            return response.text
+        else:
+            print(f"   ❌ Government-style request failed: {response.status_code}")
+            return None
+            
+    except Exception as e:
+        print(f"   ❌ Government-style request error: {e}")
         return None
 
 
@@ -514,17 +596,25 @@ def download_with_retry(
                 headers = get_congress_gov_headers()
             elif use_aggressive_mode:
                 # Rotate between different header styles in aggressive mode
-                header_styles = [get_stealth_headers, get_chatgpt_style_headers, get_realistic_headers]
+                header_styles = [
+                    get_stealth_headers,
+                    get_chatgpt_style_headers,
+                    get_realistic_headers,
+                ]
                 headers = header_styles[attempt % len(header_styles)]()
             else:
                 headers = get_realistic_headers()
 
-            # Configure proxies if in aggressive mode
+            # Configure proxies if in aggressive mode and we have real proxies
             proxies = None
-            if use_aggressive_mode and PROXY_LIST:
-                proxy = get_next_proxy()
-                proxies = {"http": proxy, "https": proxy}
-                print(f"   🔄 Using proxy: {proxy}")
+            if use_aggressive_mode and PROXY_LIST and len(PROXY_LIST) > 0:
+                # Only use proxies if they're not the example DNS servers
+                if not any("8.8.8.8" in proxy or "1.1.1.1" in proxy or "9.9.9.9" in proxy for proxy in PROXY_LIST):
+                    proxy = get_next_proxy()
+                    proxies = {"http": proxy, "https": proxy}
+                    print(f"   🔄 Using proxy: {proxy}")
+                else:
+                    print(f"   ⚠️ Skipping example proxies, using direct connection")
 
             # Make the request with additional options
             response = session.get(
@@ -620,6 +710,34 @@ def download_with_retry(
                                 self.content = content.encode("utf-8")
 
                         return MockResponse(chatgpt_content)
+
+                if response.status_code == 403 and use_aggressive_mode:
+                    # Strategy 8: Try alternative approach (mobile)
+                    print(f"   🔄 Trying alternative approach fallback for {url}")
+                    alt_content = try_alternative_approach(url)
+                    if alt_content:
+                        # Create a mock response object
+                        class MockResponse:
+                            def __init__(self, content):
+                                self.text = content
+                                self.status_code = 200
+                                self.content = content.encode("utf-8")
+
+                        return MockResponse(alt_content)
+
+                if response.status_code == 403 and use_aggressive_mode:
+                    # Strategy 9: Try government-style request
+                    print(f"   🔄 Trying government-style fallback for {url}")
+                    gov_content = try_government_style_request(url)
+                    if gov_content:
+                        # Create a mock response object
+                        class MockResponse:
+                            def __init__(self, content):
+                                self.text = content
+                                self.status_code = 200
+                                self.content = content.encode("utf-8")
+
+                        return MockResponse(gov_content)
 
             response.raise_for_status()
             return response
