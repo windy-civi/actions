@@ -20,7 +20,17 @@ def download_bill_text(url: str, delay: float = 1.0) -> Optional[str]:
     """
     try:
         time.sleep(delay)  # Be respectful to the server
-        response = requests.get(url, timeout=30)
+        
+        # Add headers to make the request look like a real browser
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive',
+        }
+        
+        response = requests.get(url, headers=headers, timeout=30)
         response.raise_for_status()
 
         content_type = response.headers.get("content-type", "").lower()
@@ -346,7 +356,16 @@ def debug_pdf_structure(url: str) -> dict:
     fonts, colors, and other properties that might indicate strikethrough text.
     """
     try:
-        response = requests.get(url, timeout=30)
+        # Add headers to make the request look like a real browser
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'application/pdf,application/octet-stream,*/*;q=0.9',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive',
+        }
+        
+        response = requests.get(url, headers=headers, timeout=30)
         response.raise_for_status()
 
         import pdfplumber
@@ -463,9 +482,19 @@ def process_bills_in_batch(
 
 
 def download_html_content(url: str) -> str:
-    """Download HTML content from URL."""
+    """Download HTML content from URL with proper headers to avoid blocking."""
     try:
-        response = requests.get(url, timeout=30)
+        # Add headers to make the request look like a real browser
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+        }
+        
+        response = requests.get(url, headers=headers, timeout=30)
         response.raise_for_status()
         return response.text
     except Exception as e:
@@ -476,7 +505,16 @@ def download_html_content(url: str) -> str:
 def download_pdf_content(url: str) -> str:
     """Download PDF content from URL and convert to text."""
     try:
-        response = requests.get(url, timeout=30)
+        # Add headers to make the request look like a real browser
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'application/pdf,application/octet-stream,*/*;q=0.9',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive',
+        }
+        
+        response = requests.get(url, headers=headers, timeout=30)
         response.raise_for_status()
 
         # Try multiple PDF parsing libraries in order of preference
@@ -637,7 +675,16 @@ def extract_text_with_strikethroughs(url: str) -> dict:
     the visual layout and character positioning in the PDF.
     """
     try:
-        response = requests.get(url, timeout=30)
+        # Add headers to make the request look like a real browser
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'application/pdf,application/octet-stream,*/*;q=0.9',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive',
+        }
+        
+        response = requests.get(url, headers=headers, timeout=30)
         response.raise_for_status()
 
         # Try pdfplumber with enhanced strikethrough detection
