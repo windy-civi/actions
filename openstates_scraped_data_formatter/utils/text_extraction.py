@@ -2,10 +2,73 @@ import requests
 import xml.etree.ElementTree as ET
 import re
 import time
+import random
 from pathlib import Path
 from typing import List, Dict, Optional
 import json
 
+# Create a session for persistent connections
+session = requests.Session()
+
+def get_realistic_headers() -> dict:
+    """Get realistic browser headers to avoid blocking."""
+    user_agents = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
+    ]
+    
+    return {
+        "User-Agent": random.choice(user_agents),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Cache-Control": "max-age=0",
+        "Referer": "https://www.congress.gov/",
+    }
+
+def download_with_retry(url: str, max_retries: int = 3, delay: float = 1.0) -> Optional[requests.Response]:
+    """Download with retry logic and exponential backoff."""
+    for attempt in range(max_retries):
+        try:
+            # Add random delay to avoid rate limiting
+            time.sleep(delay + random.uniform(0.5, 2.0))
+            
+            # Get fresh headers for each attempt
+            headers = get_realistic_headers()
+            
+            # Make the request
+            response = session.get(url, headers=headers, timeout=30)
+            
+            # If we get a 403, try a different approach
+            if response.status_code == 403:
+                print(f"   ⚠️ Got 403 on attempt {attempt + 1}, trying different headers...")
+                # Try with a different user agent
+                headers["User-Agent"] = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+                response = session.get(url, headers=headers, timeout=30)
+            
+            response.raise_for_status()
+            return response
+            
+        except requests.exceptions.RequestException as e:
+            print(f"   ⚠️ Attempt {attempt + 1} failed: {e}")
+            if attempt < max_retries - 1:
+                # Exponential backoff
+                wait_time = delay * (2 ** attempt) + random.uniform(1, 3)
+                print(f"   ⏳ Waiting {wait_time:.1f}s before retry...")
+                time.sleep(wait_time)
+            else:
+                print(f"   ❌ All {max_retries} attempts failed for {url}")
+                return None
+    
+    return None
 
 def download_bill_text(url: str, delay: float = 1.0) -> Optional[str]:
     """
@@ -19,19 +82,9 @@ def download_bill_text(url: str, delay: float = 1.0) -> Optional[str]:
         XML content as string, or None if failed
     """
     try:
-        time.sleep(delay)  # Be respectful to the server
-        
-        # Add headers to make the request look like a real browser
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',
-            'Connection': 'keep-alive',
-        }
-        
-        response = requests.get(url, headers=headers, timeout=30)
-        response.raise_for_status()
+        response = download_with_retry(url, max_retries=3, delay=delay)
+        if not response:
+            return None
 
         content_type = response.headers.get("content-type", "").lower()
         content = response.text
@@ -356,17 +409,9 @@ def debug_pdf_structure(url: str) -> dict:
     fonts, colors, and other properties that might indicate strikethrough text.
     """
     try:
-        # Add headers to make the request look like a real browser
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'application/pdf,application/octet-stream,*/*;q=0.9',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',
-            'Connection': 'keep-alive',
-        }
-        
-        response = requests.get(url, headers=headers, timeout=30)
-        response.raise_for_status()
+        response = download_with_retry(url, max_retries=3, delay=1.0)
+        if not response:
+            return {"error": "Failed to download PDF"}
 
         import pdfplumber
         import io
@@ -484,18 +529,9 @@ def process_bills_in_batch(
 def download_html_content(url: str) -> str:
     """Download HTML content from URL with proper headers to avoid blocking."""
     try:
-        # Add headers to make the request look like a real browser
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-        }
-        
-        response = requests.get(url, headers=headers, timeout=30)
-        response.raise_for_status()
+        response = download_with_retry(url, max_retries=3, delay=1.0)
+        if not response:
+            return None
         return response.text
     except Exception as e:
         print(f"   ❌ Failed to download HTML: {e}")
@@ -505,17 +541,9 @@ def download_html_content(url: str) -> str:
 def download_pdf_content(url: str) -> str:
     """Download PDF content from URL and convert to text."""
     try:
-        # Add headers to make the request look like a real browser
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'application/pdf,application/octet-stream,*/*;q=0.9',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',
-            'Connection': 'keep-alive',
-        }
-        
-        response = requests.get(url, headers=headers, timeout=30)
-        response.raise_for_status()
+        response = download_with_retry(url, max_retries=3, delay=1.0)
+        if not response:
+            return None
 
         # Try multiple PDF parsing libraries in order of preference
         pdf_content = None
@@ -675,17 +703,9 @@ def extract_text_with_strikethroughs(url: str) -> dict:
     the visual layout and character positioning in the PDF.
     """
     try:
-        # Add headers to make the request look like a real browser
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'application/pdf,application/octet-stream,*/*;q=0.9',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',
-            'Connection': 'keep-alive',
-        }
-        
-        response = requests.get(url, headers=headers, timeout=30)
-        response.raise_for_status()
+        response = download_with_retry(url, max_retries=3, delay=1.0)
+        if not response:
+            return None
 
         # Try pdfplumber with enhanced strikethrough detection
         try:

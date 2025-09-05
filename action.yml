@@ -34,17 +34,17 @@ runs:
       working-directory: ${{ github.action_path }}
       run: |
         echo "📄 Extracting text from PDFs and XMLs for ${{ inputs.state }}"
-        
+
         # Check if the data directory exists in the calling repo
         if [ ! -d "${{ github.workspace }}/data_output/data_processed" ]; then
           echo "❌ Data directory not found: ${{ github.workspace }}/data_output/data_processed"
           echo "Make sure the data pipeline has been run first"
           exit 1
         fi
-        
+
         # Run text extraction on the processed data
         pipenv run python openstates_scraped_data_formatter/utils/text_extraction.py "${{ github.workspace }}/data_output/data_processed"
-        
+
         echo "✅ Text extraction complete"
 
     - name: Commit Changes
