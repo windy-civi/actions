@@ -136,38 +136,38 @@ def fetch_working_proxies():
     """Fetch a list of working proxy servers from free proxy APIs."""
     try:
         print("   🔄 Fetching working proxy servers...")
-        
+
         # Try to get proxies from free proxy APIs
         proxy_sources = [
             "https://api.proxyscrape.com/v2/?request=get&protocol=http&timeout=10000&country=all&ssl=all&anonymity=all",
             "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt",
         ]
-        
+
         working_proxies = []
-        
+
         for source in proxy_sources:
             try:
                 response = requests.get(source, timeout=10)
                 if response.status_code == 200:
-                    proxies = response.text.strip().split('\n')
+                    proxies = response.text.strip().split("\n")
                     # Filter and format proxies
                     for proxy in proxies[:10]:  # Limit to first 10
                         proxy = proxy.strip()
-                        if proxy and ':' in proxy:
-                            if not proxy.startswith('http'):
+                        if proxy and ":" in proxy:
+                            if not proxy.startswith("http"):
                                 proxy = f"http://{proxy}"
                             working_proxies.append(proxy)
                     break
             except:
                 continue
-        
+
         if working_proxies:
             global PROXY_LIST
             PROXY_LIST = working_proxies
             print(f"   ✅ Found {len(working_proxies)} working proxies")
         else:
             print("   ⚠️ No working proxies found, using direct connection")
-            
+
     except Exception as e:
         print(f"   ❌ Error fetching proxies: {e}")
         print("   ⚠️ Using direct connection")
@@ -203,33 +203,60 @@ def get_stealth_headers() -> dict:
     }
 
 
+def get_chatgpt_style_headers() -> dict:
+    """Get headers that mimic ChatGPT's request patterns."""
+    return {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+    }
+
+
 def try_curl_download(url: str) -> Optional[str]:
     """Try downloading using curl as a fallback method."""
     try:
         print(f"   🔄 Trying curl download for {url}")
-        
+
         # Use curl with realistic headers
         cmd = [
-            "curl", "-s", "-L",
-            "-H", "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "-H", "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "-H", "Accept-Language: en-US,en;q=0.9",
-            "-H", "DNT: 1",
-            "-H", "Connection: keep-alive",
-            "--connect-timeout", "30",
-            "--max-time", "60",
-            url
+            "curl",
+            "-s",
+            "-L",
+            "-H",
+            "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "-H",
+            "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "-H",
+            "Accept-Language: en-US,en;q=0.9",
+            "-H",
+            "DNT: 1",
+            "-H",
+            "Connection: keep-alive",
+            "--connect-timeout",
+            "30",
+            "--max-time",
+            "60",
+            url,
         ]
-        
+
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-        
+
         if result.returncode == 0 and result.stdout:
             print(f"   ✅ Curl download successful")
             return result.stdout
         else:
             print(f"   ❌ Curl download failed: {result.stderr}")
             return None
-            
+
     except Exception as e:
         print(f"   ❌ Curl download error: {e}")
         return None
@@ -239,27 +266,63 @@ def try_wget_download(url: str) -> Optional[str]:
     """Try downloading using wget as another fallback method."""
     try:
         print(f"   🔄 Trying wget download for {url}")
-        
+
         # Use wget with realistic headers
         cmd = [
-            "wget", "-q", "-O", "-",
+            "wget",
+            "-q",
+            "-O",
+            "-",
             "--header=User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "--header=Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "--timeout=30",
-            url
+            url,
         ]
-        
+
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-        
+
         if result.returncode == 0 and result.stdout:
             print(f"   ✅ Wget download successful")
             return result.stdout
         else:
             print(f"   ❌ Wget download failed: {result.stderr}")
             return None
-            
+
     except Exception as e:
         print(f"   ❌ Wget download error: {e}")
+        return None
+
+
+def try_chatgpt_style_download(url: str) -> Optional[str]:
+    """Try downloading using ChatGPT-style request patterns."""
+    try:
+        print(f"   🔄 Trying ChatGPT-style download for {url}")
+        
+        # Create a new session with ChatGPT-style headers
+        session = requests.Session()
+        headers = get_chatgpt_style_headers()
+        
+        # Add some ChatGPT-like behavior patterns
+        time.sleep(random.uniform(2.0, 4.0))  # ChatGPT-like delay
+        
+        # Make the request with ChatGPT-style headers
+        response = session.get(
+            url,
+            headers=headers,
+            timeout=60,
+            verify=False,
+            allow_redirects=True,
+        )
+        
+        if response.status_code == 200:
+            print(f"   ✅ ChatGPT-style download successful")
+            return response.text
+        else:
+            print(f"   ❌ ChatGPT-style download failed: {response.status_code}")
+            return None
+            
+    except Exception as e:
+        print(f"   ❌ ChatGPT-style download error: {e}")
         return None
 
 
@@ -424,7 +487,10 @@ def reset_error_tracking():
 
 
 def download_with_retry(
-    url: str, max_retries: int = 5, delay: float = 1.0, use_aggressive_mode: bool = False
+    url: str,
+    max_retries: int = 5,
+    delay: float = 1.0,
+    use_aggressive_mode: bool = False,
 ) -> Optional[requests.Response]:
     """Download with advanced retry logic and anti-blocking techniques."""
     is_congress_gov = "congress.gov" in url
@@ -433,7 +499,7 @@ def download_with_retry(
         try:
             # Throttle requests to avoid rate limiting
             throttle_requests(min_delay=3.0 if is_congress_gov else 1.0)
-            
+
             # Rotate session for load balancing
             session = rotate_session()
 
@@ -447,7 +513,9 @@ def download_with_retry(
             if is_congress_gov:
                 headers = get_congress_gov_headers()
             elif use_aggressive_mode:
-                headers = get_stealth_headers()
+                # Rotate between different header styles in aggressive mode
+                header_styles = [get_stealth_headers, get_chatgpt_style_headers, get_realistic_headers]
+                headers = header_styles[attempt % len(header_styles)]()
             else:
                 headers = get_realistic_headers()
 
@@ -521,7 +589,8 @@ def download_with_retry(
                             def __init__(self, content):
                                 self.text = content
                                 self.status_code = 200
-                                self.content = content.encode('utf-8')
+                                self.content = content.encode("utf-8")
+
                         return MockResponse(curl_content)
 
                 if response.status_code == 403 and use_aggressive_mode:
@@ -534,8 +603,23 @@ def download_with_retry(
                             def __init__(self, content):
                                 self.text = content
                                 self.status_code = 200
-                                self.content = content.encode('utf-8')
+                                self.content = content.encode("utf-8")
+
                         return MockResponse(wget_content)
+
+                if response.status_code == 403 and use_aggressive_mode:
+                    # Strategy 7: Try ChatGPT-style download
+                    print(f"   🔄 Trying ChatGPT-style fallback for {url}")
+                    chatgpt_content = try_chatgpt_style_download(url)
+                    if chatgpt_content:
+                        # Create a mock response object
+                        class MockResponse:
+                            def __init__(self, content):
+                                self.text = content
+                                self.status_code = 200
+                                self.content = content.encode("utf-8")
+
+                        return MockResponse(chatgpt_content)
 
             response.raise_for_status()
             return response
@@ -1077,21 +1161,25 @@ def download_congress_gov_content(url: str) -> str:
     try:
         # Fetch working proxies for aggressive mode
         fetch_working_proxies()
-        
+
         # For amendment URLs, try the /text endpoint first
         if "/amendment/" in url and not url.endswith("/text"):
             text_url = url + "/text"
             print(f"   🔄 Trying /text endpoint: {text_url}")
 
             # Try the /text endpoint first with aggressive mode
-            response = download_with_retry(text_url, max_retries=5, delay=2.0, use_aggressive_mode=True)
+            response = download_with_retry(
+                text_url, max_retries=5, delay=2.0, use_aggressive_mode=True
+            )
             if response:
                 return response.text
 
             print(f"   ⚠️ /text endpoint failed, trying original URL: {url}")
 
         # Try the enhanced retry function on original URL with aggressive mode
-        response = download_with_retry(url, max_retries=5, delay=2.0, use_aggressive_mode=True)
+        response = download_with_retry(
+            url, max_retries=5, delay=2.0, use_aggressive_mode=True
+        )
         if response:
             return response.text
 
