@@ -9,6 +9,7 @@ import json
 import urllib3
 from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
+from datetime import datetime
 
 # Disable SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -34,6 +35,14 @@ for i in range(3):
 
 # Current session index for rotation
 current_session_index = 0
+
+# Global error tracking
+failed_bills_tracker = {
+    "failed_downloads": [],
+    "failed_parsing": [],
+    "failed_saves": [],
+    "total_failed": 0,
+}
 
 
 def get_realistic_headers() -> dict:
@@ -91,6 +100,166 @@ def rotate_session():
     global current_session_index
     current_session_index = (current_session_index + 1) % len(sessions)
     return sessions[current_session_index]
+
+
+def record_failed_bill(
+    bill_id: str,
+    error_type: str,
+    error_message: str,
+    url: str = "",
+    metadata_file: str = "",
+    additional_info: Dict = None,
+    output_folder: Path = None,
+):
+    """Record a failed bill for error tracking and reporting."""
+    global failed_bills_tracker
+
+    error_record = {
+        "bill_id": bill_id,
+        "error_type": error_type,
+        "error_message": error_message,
+        "url": url,
+        "metadata_file": metadata_file,
+        "timestamp": datetime.now().isoformat(),
+        "additional_info": additional_info or {},
+    }
+
+    # Add to global tracker
+    if error_type == "download":
+        failed_bills_tracker["failed_downloads"].append(error_record)
+    elif error_type == "parsing":
+        failed_bills_tracker["failed_parsing"].append(error_record)
+    elif error_type == "save":
+        failed_bills_tracker["failed_saves"].append(error_record)
+
+    failed_bills_tracker["total_failed"] += 1
+
+    # Save individual error file to data_not_processed if output folder provided
+    if output_folder:
+        save_individual_error_file(error_record, output_folder)
+
+
+def save_individual_error_file(error_record: Dict, output_folder: Path):
+    """Save an individual failed bill error file to data_not_processed following the existing pattern."""
+    try:
+        # Create data_not_processed folder structure
+        data_not_processed = output_folder / "data_not_processed"
+        error_category = f"{error_record['error_type']}_failures"
+        error_folder = data_not_processed / "text_extraction_errors" / error_category
+        error_folder.mkdir(parents=True, exist_ok=True)
+        
+        # Create filename following the existing pattern
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        bill_id_clean = error_record['bill_id'].replace(" ", "").replace("/", "_")
+        filename = f"bill_{bill_id_clean}_{timestamp}.json"
+        
+        # Save the error record
+        with open(error_folder / filename, "w", encoding="utf-8") as f:
+            json.dump(error_record, f, indent=2, ensure_ascii=False)
+        
+        print(f"   📋 Saved error file: {error_folder / filename}")
+        
+    except Exception as e:
+        print(f"   ❌ Error saving individual error file: {e}")
+
+
+def save_failed_bills_report(output_folder: Path, state: str):
+    """Save a comprehensive report of failed bills to the calling repo's data_not_processed folder."""
+    global failed_bills_tracker
+
+    if failed_bills_tracker["total_failed"] == 0:
+        print("✅ No failed bills to report")
+        return
+
+    # Create data_not_processed folder structure
+    data_not_processed = output_folder / "data_not_processed"
+    text_extraction_errors = data_not_processed / "text_extraction_errors"
+    summary_reports = text_extraction_errors / "summary_reports"
+    summary_reports.mkdir(parents=True, exist_ok=True)
+
+    # Generate timestamp for the report
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Save detailed error report
+    report_file = summary_reports / f"failed_text_extraction_{state}_{timestamp}.json"
+
+    report_data = {
+        "state": state,
+        "timestamp": datetime.now().isoformat(),
+        "summary": {
+            "total_failed": failed_bills_tracker["total_failed"],
+            "failed_downloads": len(failed_bills_tracker["failed_downloads"]),
+            "failed_parsing": len(failed_bills_tracker["failed_parsing"]),
+            "failed_saves": len(failed_bills_tracker["failed_saves"]),
+        },
+        "failed_downloads": failed_bills_tracker["failed_downloads"],
+        "failed_parsing": failed_bills_tracker["failed_parsing"],
+        "failed_saves": failed_bills_tracker["failed_saves"],
+    }
+
+    try:
+        with open(report_file, "w", encoding="utf-8") as f:
+            json.dump(report_data, f, indent=2, ensure_ascii=False)
+
+        print(f"📋 Failed bills report saved: {report_file}")
+        print(f"   Total failed: {failed_bills_tracker['total_failed']}")
+        print(f"   Download failures: {len(failed_bills_tracker['failed_downloads'])}")
+        print(f"   Parsing failures: {len(failed_bills_tracker['failed_parsing'])}")
+        print(f"   Save failures: {len(failed_bills_tracker['failed_saves'])}")
+
+    except Exception as e:
+        print(f"❌ Error saving failed bills report: {e}")
+
+    # Also save a simple summary file for quick reference
+    summary_file = summary_reports / f"failed_summary_{state}_{timestamp}.txt"
+    try:
+        with open(summary_file, "w", encoding="utf-8") as f:
+            f.write(f"Text Extraction Failure Report - {state}\n")
+            f.write(f"Generated: {datetime.now().isoformat()}\n\n")
+            f.write(f"Total Failed Bills: {failed_bills_tracker['total_failed']}\n")
+            f.write(
+                f"Download Failures: {len(failed_bills_tracker['failed_downloads'])}\n"
+            )
+            f.write(
+                f"Parsing Failures: {len(failed_bills_tracker['failed_parsing'])}\n"
+            )
+            f.write(f"Save Failures: {len(failed_bills_tracker['failed_saves'])}\n\n")
+
+            if failed_bills_tracker["failed_downloads"]:
+                f.write("DOWNLOAD FAILURES:\n")
+                for error in failed_bills_tracker["failed_downloads"]:
+                    f.write(f"  - {error['bill_id']}: {error['error_message']}\n")
+                    if error["url"]:
+                        f.write(f"    URL: {error['url']}\n")
+                f.write("\n")
+
+            if failed_bills_tracker["failed_parsing"]:
+                f.write("PARSING FAILURES:\n")
+                for error in failed_bills_tracker["failed_parsing"]:
+                    f.write(f"  - {error['bill_id']}: {error['error_message']}\n")
+                f.write("\n")
+
+            if failed_bills_tracker["failed_saves"]:
+                f.write("SAVE FAILURES:\n")
+                for error in failed_bills_tracker["failed_saves"]:
+                    f.write(f"  - {error['bill_id']}: {error['error_message']}\n")
+                f.write("\n")
+
+        print(f"📋 Summary report saved: {summary_file}")
+
+    except Exception as e:
+        print(f"❌ Error saving summary report: {e}")
+
+
+def reset_error_tracking():
+    """Reset the global error tracking for a new run."""
+    global failed_bills_tracker
+    failed_bills_tracker = {
+        "failed_downloads": [],
+        "failed_parsing": [],
+        "failed_saves": [],
+        "total_failed": 0,
+    }
 
 
 def download_with_retry(
@@ -300,13 +469,14 @@ def create_safe_filename(
     return filename
 
 
-def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path) -> bool:
+def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path, output_folder: Path = None) -> bool:
     """
     Extract bill text for a single bill from its metadata.json file.
 
     Args:
         metadata_file: Path to metadata.json file
         files_dir: Path to files/ directory for this bill
+        output_folder: Path to calling repo root for error reporting (optional)
 
     Returns:
         True if successful, False otherwise
@@ -315,6 +485,12 @@ def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path) -> boo
         # Load metadata
         with open(metadata_file, "r", encoding="utf-8") as f:
             metadata = json.load(f)
+
+        # Extract bill ID for error tracking
+        bill_id = metadata.get("identifier", "unknown")
+        if not bill_id or bill_id == "unknown":
+            # Try to extract from file path as fallback
+            bill_id = metadata_file.parent.name
 
         # Define media type preference order (best to worst)
         MEDIA_TYPE_PREFERENCE = [
@@ -417,6 +593,18 @@ def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path) -> boo
 
                 if not content:
                     print(f"   ❌ Failed to download: {url}")
+                    record_failed_bill(
+                        bill_id=bill_id,
+                        error_type="download",
+                        error_message=f"Failed to download content from {media_type}",
+                        url=url,
+                        metadata_file=str(metadata_file),
+                        additional_info={
+                            "media_type": media_type,
+                            "item_note": item_note,
+                        },
+                        output_folder=output_folder,
+                    )
                     continue
 
                 print(f"   📄 Downloaded {len(content)} characters")
@@ -439,6 +627,18 @@ def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path) -> boo
 
                 if "error" in extracted_data:
                     print(f"   ❌ Failed to parse content: {extracted_data['error']}")
+                    record_failed_bill(
+                        bill_id=bill_id,
+                        error_type="parsing",
+                        error_message=extracted_data["error"],
+                        url=url,
+                        metadata_file=str(metadata_file),
+                        additional_info={
+                            "media_type": media_type,
+                            "item_note": item_note,
+                        },
+                        output_folder=output_folder,
+                    )
                     continue
 
                 # Create filenames
@@ -506,6 +706,19 @@ def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path) -> boo
                     print(f"   ✅ Text saved successfully")
                 except Exception as e:
                     print(f"   ❌ Error saving text: {e}")
+                    record_failed_bill(
+                        bill_id=bill_id,
+                        error_type="save",
+                        error_message=f"Failed to save extracted text: {e}",
+                        url=url,
+                        metadata_file=str(metadata_file),
+                        additional_info={
+                            "media_type": media_type,
+                            "item_note": item_note,
+                            "text_filename": text_filename,
+                        },
+                        output_folder=output_folder,
+                    )
                     continue
 
                 success_count += 1
@@ -576,7 +789,10 @@ def debug_pdf_structure(url: str) -> dict:
 
 
 def process_bills_in_batch(
-    processed_folder: Path, batch_size: int = 100
+    processed_folder: Path,
+    batch_size: int = 100,
+    output_folder: Path = None,
+    state: str = "unknown",
 ) -> Dict[str, int]:
     """
     Process bills in batches for text extraction.
@@ -584,10 +800,15 @@ def process_bills_in_batch(
     Args:
         processed_folder: Path to the processed data folder
         batch_size: Number of bills to process in each batch
+        output_folder: Path to save error reports (optional)
+        state: State identifier for error reports (optional)
 
     Returns:
         Dictionary with processing statistics
     """
+    # Reset error tracking for this run
+    reset_error_tracking()
+
     # Find all metadata.json files
     metadata_files = list(processed_folder.rglob("metadata.json"))
 
@@ -613,7 +834,7 @@ def process_bills_in_batch(
                 files_dir.mkdir(parents=True, exist_ok=True)
 
                 # Extract text for this bill
-                success = extract_bill_text_from_metadata(metadata_file, files_dir)
+                success = extract_bill_text_from_metadata(metadata_file, files_dir, output_folder)
 
                 if success:
                     success_count += 1
@@ -635,6 +856,10 @@ def process_bills_in_batch(
             f"✅ Batch {batch_num} complete. Success: {success_count}, Errors: {error_count}"
         )
 
+    # Save error report if output folder is provided
+    if output_folder:
+        save_failed_bills_report(output_folder, state)
+
     return {
         "total_bills": total_bills,
         "processed": processed_count,
@@ -650,14 +875,14 @@ def download_congress_gov_content(url: str) -> str:
         if "/amendment/" in url and not url.endswith("/text"):
             text_url = url + "/text"
             print(f"   🔄 Trying /text endpoint: {text_url}")
-            
+
             # Try the /text endpoint first
             response = download_with_retry(text_url, max_retries=5, delay=2.0)
             if response:
                 return response.text
-            
+
             print(f"   ⚠️ /text endpoint failed, trying original URL: {url}")
-        
+
         # Try the enhanced retry function on original URL
         response = download_with_retry(url, max_retries=5, delay=2.0)
         if response:
@@ -692,7 +917,7 @@ def download_congress_gov_content(url: str) -> str:
             )
             if response.status_code == 200:
                 return response.text
-                
+
             # If /text failed, try original URL
             if target_url != url:
                 print(f"   🔄 Session warming: trying original URL: {url}")
@@ -713,17 +938,19 @@ def download_congress_gov_content(url: str) -> str:
         }
 
         session = rotate_session()
-        
+
         # For amendment URLs, try /text endpoint first
         target_url = url
         if "/amendment/" in url and not url.endswith("/text"):
             target_url = url + "/text"
             print(f"   🔄 Curl fallback: trying /text endpoint: {target_url}")
-            
-        response = session.get(target_url, headers=curl_headers, timeout=45, verify=False)
+
+        response = session.get(
+            target_url, headers=curl_headers, timeout=45, verify=False
+        )
         if response.status_code == 200:
             return response.text
-            
+
         # If /text failed, try original URL
         if target_url != url:
             print(f"   🔄 Curl fallback: trying original URL: {url}")

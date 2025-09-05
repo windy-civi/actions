@@ -20,7 +20,13 @@ from utils.text_extraction import process_bills_in_batch
     required=True,
     help="Path to the data_output/data_processed folder containing bill data.",
 )
-def main(state: str, data_folder: Path):
+@click.option(
+    "--output-folder",
+    type=click.Path(file_okay=False, dir_okay=True, path_type=Path),
+    required=False,
+    help="Path to the calling repo's root folder for error reports (optional).",
+)
+def main(state: str, data_folder: Path, output_folder: Path = None):
     """
     Extract text from PDFs and XMLs in processed bill data.
 
@@ -46,7 +52,7 @@ def main(state: str, data_folder: Path):
 
     # Run text extraction
     try:
-        stats = process_bills_in_batch(data_folder)
+        stats = process_bills_in_batch(data_folder, output_folder=output_folder, state=state)
 
         print(f"\n📊 Text Extraction Complete!")
         print(f"Total bills: {stats['total_bills']}")
