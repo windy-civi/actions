@@ -147,18 +147,18 @@ def save_individual_error_file(error_record: Dict, output_folder: Path):
         error_category = f"{error_record['error_type']}_failures"
         error_folder = data_not_processed / "text_extraction_errors" / error_category
         error_folder.mkdir(parents=True, exist_ok=True)
-        
+
         # Create filename following the existing pattern
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        bill_id_clean = error_record['bill_id'].replace(" ", "").replace("/", "_")
+        bill_id_clean = error_record["bill_id"].replace(" ", "").replace("/", "_")
         filename = f"bill_{bill_id_clean}_{timestamp}.json"
-        
+
         # Save the error record
         with open(error_folder / filename, "w", encoding="utf-8") as f:
             json.dump(error_record, f, indent=2, ensure_ascii=False)
-        
+
         print(f"   📋 Saved error file: {error_folder / filename}")
-        
+
     except Exception as e:
         print(f"   ❌ Error saving individual error file: {e}")
 
@@ -469,7 +469,9 @@ def create_safe_filename(
     return filename
 
 
-def extract_bill_text_from_metadata(metadata_file: Path, files_dir: Path, output_folder: Path = None) -> bool:
+def extract_bill_text_from_metadata(
+    metadata_file: Path, files_dir: Path, output_folder: Path = None
+) -> bool:
     """
     Extract bill text for a single bill from its metadata.json file.
 
@@ -834,7 +836,9 @@ def process_bills_in_batch(
                 files_dir.mkdir(parents=True, exist_ok=True)
 
                 # Extract text for this bill
-                success = extract_bill_text_from_metadata(metadata_file, files_dir, output_folder)
+                success = extract_bill_text_from_metadata(
+                    metadata_file, files_dir, output_folder
+                )
 
                 if success:
                     success_count += 1
