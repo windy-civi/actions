@@ -10,6 +10,9 @@ import urllib3
 from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 from datetime import datetime
+import subprocess
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Disable SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -43,6 +46,22 @@ failed_bills_tracker = {
     "failed_saves": [],
     "total_failed": 0,
 }
+
+# Advanced anti-blocking configuration
+PROXY_LIST = [
+    # Free proxy servers (these will be rotated)
+    # Note: These are example proxies - in production, you'd want to use
+    # a proxy service or rotate through a list of working proxies
+    "http://8.8.8.8:8080",  # Example - replace with real proxies
+    "http://1.1.1.1:8080",  # Example - replace with real proxies
+    "http://9.9.9.9:8080",  # Example - replace with real proxies
+]
+current_proxy_index = 0
+proxy_lock = threading.Lock()
+
+# Request throttling
+last_request_time = 0
+request_lock = threading.Lock()
 
 
 def get_realistic_headers() -> dict:
@@ -100,6 +119,148 @@ def rotate_session():
     global current_session_index
     current_session_index = (current_session_index + 1) % len(sessions)
     return sessions[current_session_index]
+
+
+def get_next_proxy():
+    """Get the next proxy in rotation."""
+    global current_proxy_index
+    with proxy_lock:
+        if not PROXY_LIST:
+            return None
+        proxy = PROXY_LIST[current_proxy_index]
+        current_proxy_index = (current_proxy_index + 1) % len(PROXY_LIST)
+        return proxy
+
+
+def fetch_working_proxies():
+    """Fetch a list of working proxy servers from free proxy APIs."""
+    try:
+        print("   🔄 Fetching working proxy servers...")
+        
+        # Try to get proxies from free proxy APIs
+        proxy_sources = [
+            "https://api.proxyscrape.com/v2/?request=get&protocol=http&timeout=10000&country=all&ssl=all&anonymity=all",
+            "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt",
+        ]
+        
+        working_proxies = []
+        
+        for source in proxy_sources:
+            try:
+                response = requests.get(source, timeout=10)
+                if response.status_code == 200:
+                    proxies = response.text.strip().split('\n')
+                    # Filter and format proxies
+                    for proxy in proxies[:10]:  # Limit to first 10
+                        proxy = proxy.strip()
+                        if proxy and ':' in proxy:
+                            if not proxy.startswith('http'):
+                                proxy = f"http://{proxy}"
+                            working_proxies.append(proxy)
+                    break
+            except:
+                continue
+        
+        if working_proxies:
+            global PROXY_LIST
+            PROXY_LIST = working_proxies
+            print(f"   ✅ Found {len(working_proxies)} working proxies")
+        else:
+            print("   ⚠️ No working proxies found, using direct connection")
+            
+    except Exception as e:
+        print(f"   ❌ Error fetching proxies: {e}")
+        print("   ⚠️ Using direct connection")
+
+
+def throttle_requests(min_delay: float = 2.0):
+    """Ensure minimum delay between requests to avoid rate limiting."""
+    global last_request_time
+    with request_lock:
+        current_time = time.time()
+        time_since_last = current_time - last_request_time
+        if time_since_last < min_delay:
+            sleep_time = min_delay - time_since_last
+            time.sleep(sleep_time)
+        last_request_time = time.time()
+
+
+def get_stealth_headers() -> dict:
+    """Get headers that mimic a real browser more closely."""
+    return {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "DNT": "1",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Cache-Control": "max-age=0",
+    }
+
+
+def try_curl_download(url: str) -> Optional[str]:
+    """Try downloading using curl as a fallback method."""
+    try:
+        print(f"   🔄 Trying curl download for {url}")
+        
+        # Use curl with realistic headers
+        cmd = [
+            "curl", "-s", "-L",
+            "-H", "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "-H", "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "-H", "Accept-Language: en-US,en;q=0.9",
+            "-H", "DNT: 1",
+            "-H", "Connection: keep-alive",
+            "--connect-timeout", "30",
+            "--max-time", "60",
+            url
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        
+        if result.returncode == 0 and result.stdout:
+            print(f"   ✅ Curl download successful")
+            return result.stdout
+        else:
+            print(f"   ❌ Curl download failed: {result.stderr}")
+            return None
+            
+    except Exception as e:
+        print(f"   ❌ Curl download error: {e}")
+        return None
+
+
+def try_wget_download(url: str) -> Optional[str]:
+    """Try downloading using wget as another fallback method."""
+    try:
+        print(f"   🔄 Trying wget download for {url}")
+        
+        # Use wget with realistic headers
+        cmd = [
+            "wget", "-q", "-O", "-",
+            "--header=User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "--header=Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "--timeout=30",
+            url
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        
+        if result.returncode == 0 and result.stdout:
+            print(f"   ✅ Wget download successful")
+            return result.stdout
+        else:
+            print(f"   ❌ Wget download failed: {result.stderr}")
+            return None
+            
+    except Exception as e:
+        print(f"   ❌ Wget download error: {e}")
+        return None
 
 
 def record_failed_bill(
@@ -263,33 +424,46 @@ def reset_error_tracking():
 
 
 def download_with_retry(
-    url: str, max_retries: int = 5, delay: float = 1.0
+    url: str, max_retries: int = 5, delay: float = 1.0, use_aggressive_mode: bool = False
 ) -> Optional[requests.Response]:
     """Download with advanced retry logic and anti-blocking techniques."""
     is_congress_gov = "congress.gov" in url
 
     for attempt in range(max_retries):
         try:
+            # Throttle requests to avoid rate limiting
+            throttle_requests(min_delay=3.0 if is_congress_gov else 1.0)
+            
             # Rotate session for load balancing
             session = rotate_session()
 
             # Add random delay to avoid rate limiting
             base_delay = delay + random.uniform(1.0, 3.0)
             if is_congress_gov:
-                base_delay += random.uniform(2.0, 5.0)  # Extra delay for congress.gov
+                base_delay += random.uniform(5.0, 15.0)  # Extra delay for congress.gov
             time.sleep(base_delay)
 
             # Get specialized headers based on domain
             if is_congress_gov:
                 headers = get_congress_gov_headers()
+            elif use_aggressive_mode:
+                headers = get_stealth_headers()
             else:
                 headers = get_realistic_headers()
+
+            # Configure proxies if in aggressive mode
+            proxies = None
+            if use_aggressive_mode and PROXY_LIST:
+                proxy = get_next_proxy()
+                proxies = {"http": proxy, "https": proxy}
+                print(f"   🔄 Using proxy: {proxy}")
 
             # Make the request with additional options
             response = session.get(
                 url,
                 headers=headers,
-                timeout=45,
+                proxies=proxies,
+                timeout=60,  # Increased timeout
                 verify=False,  # Disable SSL verification for some sites
                 allow_redirects=True,
             )
@@ -336,6 +510,32 @@ def download_with_retry(
                     response = session.get(
                         url, headers=minimal_headers, timeout=45, verify=False
                     )
+
+                if response.status_code == 403 and use_aggressive_mode:
+                    # Strategy 5: Try curl as fallback
+                    print(f"   🔄 Trying curl fallback for {url}")
+                    curl_content = try_curl_download(url)
+                    if curl_content:
+                        # Create a mock response object
+                        class MockResponse:
+                            def __init__(self, content):
+                                self.text = content
+                                self.status_code = 200
+                                self.content = content.encode('utf-8')
+                        return MockResponse(curl_content)
+
+                if response.status_code == 403 and use_aggressive_mode:
+                    # Strategy 6: Try wget as fallback
+                    print(f"   🔄 Trying wget fallback for {url}")
+                    wget_content = try_wget_download(url)
+                    if wget_content:
+                        # Create a mock response object
+                        class MockResponse:
+                            def __init__(self, content):
+                                self.text = content
+                                self.status_code = 200
+                                self.content = content.encode('utf-8')
+                        return MockResponse(wget_content)
 
             response.raise_for_status()
             return response
@@ -875,20 +1075,23 @@ def process_bills_in_batch(
 def download_congress_gov_content(url: str) -> str:
     """Download content from congress.gov with specialized anti-blocking techniques."""
     try:
+        # Fetch working proxies for aggressive mode
+        fetch_working_proxies()
+        
         # For amendment URLs, try the /text endpoint first
         if "/amendment/" in url and not url.endswith("/text"):
             text_url = url + "/text"
             print(f"   🔄 Trying /text endpoint: {text_url}")
 
-            # Try the /text endpoint first
-            response = download_with_retry(text_url, max_retries=5, delay=2.0)
+            # Try the /text endpoint first with aggressive mode
+            response = download_with_retry(text_url, max_retries=5, delay=2.0, use_aggressive_mode=True)
             if response:
                 return response.text
 
             print(f"   ⚠️ /text endpoint failed, trying original URL: {url}")
 
-        # Try the enhanced retry function on original URL
-        response = download_with_retry(url, max_retries=5, delay=2.0)
+        # Try the enhanced retry function on original URL with aggressive mode
+        response = download_with_retry(url, max_retries=5, delay=2.0, use_aggressive_mode=True)
         if response:
             return response.text
 
