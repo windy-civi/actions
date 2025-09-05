@@ -6,9 +6,35 @@ import random
 from pathlib import Path
 from typing import List, Dict, Optional
 import json
+import urllib3
+from urllib3.util.retry import Retry
+from requests.adapters import HTTPAdapter
 
-# Create a session for persistent connections
-session = requests.Session()
+# Disable SSL warnings
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Create multiple sessions for rotation
+sessions = []
+for i in range(3):
+    session = requests.Session()
+    
+    # Configure retry strategy
+    retry_strategy = Retry(
+        total=3,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504],
+    )
+    
+    # Mount adapter with retry strategy
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    
+    sessions.append(session)
+
+# Current session index for rotation
+current_session_index = 0
+
 
 def get_realistic_headers() -> dict:
     """Get realistic browser headers to avoid blocking."""
@@ -17,8 +43,11 @@ def get_realistic_headers() -> dict:
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0",
     ]
-    
+
     return {
         "User-Agent": random.choice(user_agents),
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
@@ -32,43 +61,113 @@ def get_realistic_headers() -> dict:
         "Sec-Fetch-User": "?1",
         "Cache-Control": "max-age=0",
         "Referer": "https://www.congress.gov/",
+        "DNT": "1",
+        "Sec-GPC": "1",
     }
 
-def download_with_retry(url: str, max_retries: int = 3, delay: float = 1.0) -> Optional[requests.Response]:
-    """Download with retry logic and exponential backoff."""
+def get_congress_gov_headers() -> dict:
+    """Get specialized headers for congress.gov to avoid blocking."""
+    return {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-User": "?1",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+        "Referer": "https://www.congress.gov/",
+        "Origin": "https://www.congress.gov",
+    }
+
+def rotate_session():
+    """Rotate to the next session for load balancing."""
+    global current_session_index
+    current_session_index = (current_session_index + 1) % len(sessions)
+    return sessions[current_session_index]
+
+
+def download_with_retry(
+    url: str, max_retries: int = 5, delay: float = 1.0
+) -> Optional[requests.Response]:
+    """Download with advanced retry logic and anti-blocking techniques."""
+    is_congress_gov = "congress.gov" in url
+    
     for attempt in range(max_retries):
         try:
+            # Rotate session for load balancing
+            session = rotate_session()
+            
             # Add random delay to avoid rate limiting
-            time.sleep(delay + random.uniform(0.5, 2.0))
-            
-            # Get fresh headers for each attempt
-            headers = get_realistic_headers()
-            
-            # Make the request
-            response = session.get(url, headers=headers, timeout=30)
-            
-            # If we get a 403, try a different approach
+            base_delay = delay + random.uniform(1.0, 3.0)
+            if is_congress_gov:
+                base_delay += random.uniform(2.0, 5.0)  # Extra delay for congress.gov
+            time.sleep(base_delay)
+
+            # Get specialized headers based on domain
+            if is_congress_gov:
+                headers = get_congress_gov_headers()
+            else:
+                headers = get_realistic_headers()
+
+            # Make the request with additional options
+            response = session.get(
+                url, 
+                headers=headers, 
+                timeout=45,
+                verify=False,  # Disable SSL verification for some sites
+                allow_redirects=True
+            )
+
+            # If we get a 403, try multiple fallback strategies
             if response.status_code == 403:
-                print(f"   ⚠️ Got 403 on attempt {attempt + 1}, trying different headers...")
-                # Try with a different user agent
+                print(f"   ⚠️ Got 403 on attempt {attempt + 1}, trying fallback strategies...")
+                
+                # Strategy 1: Try Googlebot user agent
                 headers["User-Agent"] = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
-                response = session.get(url, headers=headers, timeout=30)
-            
+                response = session.get(url, headers=headers, timeout=45, verify=False)
+                
+                if response.status_code == 403:
+                    # Strategy 2: Try different browser
+                    headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0"
+                    headers["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+                    response = session.get(url, headers=headers, timeout=45, verify=False)
+                
+                if response.status_code == 403:
+                    # Strategy 3: Try mobile user agent
+                    headers["User-Agent"] = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+                    response = session.get(url, headers=headers, timeout=45, verify=False)
+                
+                if response.status_code == 403:
+                    # Strategy 4: Try with minimal headers
+                    minimal_headers = {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+                    }
+                    response = session.get(url, headers=minimal_headers, timeout=45, verify=False)
+
             response.raise_for_status()
             return response
-            
+
         except requests.exceptions.RequestException as e:
             print(f"   ⚠️ Attempt {attempt + 1} failed: {e}")
             if attempt < max_retries - 1:
-                # Exponential backoff
-                wait_time = delay * (2 ** attempt) + random.uniform(1, 3)
+                # Exponential backoff with jitter
+                wait_time = delay * (2**attempt) + random.uniform(2, 8)
+                if is_congress_gov:
+                    wait_time += random.uniform(3, 10)  # Extra wait for congress.gov
                 print(f"   ⏳ Waiting {wait_time:.1f}s before retry...")
                 time.sleep(wait_time)
             else:
                 print(f"   ❌ All {max_retries} attempts failed for {url}")
                 return None
-    
+
     return None
+
 
 def download_bill_text(url: str, delay: float = 1.0) -> Optional[str]:
     """
@@ -526,9 +625,60 @@ def process_bills_in_batch(
     }
 
 
+def download_congress_gov_content(url: str) -> str:
+    """Download content from congress.gov with specialized anti-blocking techniques."""
+    try:
+        # Try the enhanced retry function first
+        response = download_with_retry(url, max_retries=5, delay=2.0)
+        if response:
+            return response.text
+        
+        # If that fails, try a different approach with session warming
+        print(f"   🔄 Trying session warming approach for {url}")
+        
+        # Warm up the session by visiting the main page first
+        session = rotate_session()
+        warmup_headers = get_congress_gov_headers()
+        
+        try:
+            # Visit main page to establish session
+            session.get("https://www.congress.gov/", headers=warmup_headers, timeout=30, verify=False)
+            time.sleep(random.uniform(2, 4))
+            
+            # Now try the actual URL
+            response = session.get(url, headers=warmup_headers, timeout=45, verify=False)
+            if response.status_code == 200:
+                return response.text
+        except:
+            pass
+        
+        # Final fallback: try with curl-like headers
+        print(f"   🔄 Trying curl-like approach for {url}")
+        curl_headers = {
+            "User-Agent": "curl/7.68.0",
+            "Accept": "*/*",
+            "Connection": "keep-alive"
+        }
+        
+        session = rotate_session()
+        response = session.get(url, headers=curl_headers, timeout=45, verify=False)
+        if response.status_code == 200:
+            return response.text
+            
+        return None
+        
+    except Exception as e:
+        print(f"   ❌ Failed to download congress.gov content: {e}")
+        return None
+
 def download_html_content(url: str) -> str:
     """Download HTML content from URL with proper headers to avoid blocking."""
     try:
+        # Use specialized function for congress.gov
+        if "congress.gov" in url:
+            return download_congress_gov_content(url)
+        
+        # Use standard retry for other sites
         response = download_with_retry(url, max_retries=3, delay=1.0)
         if not response:
             return None
