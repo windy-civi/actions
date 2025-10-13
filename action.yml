@@ -43,7 +43,7 @@ runs:
         fi
 
         # Run text extraction using the main.py interface
-        pipenv run python openstates_scraped_data_formatter/main.py \
+        pipenv run python text_extraction/main.py \
           --state "${{ inputs.state }}" \
           --data-folder "${{ github.workspace }}/data_output/data_processed" \
           --output-folder "${{ github.workspace }}"
