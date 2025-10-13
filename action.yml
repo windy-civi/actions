@@ -1,5 +1,5 @@
-name: "OpenCivicData Pipeline"
-description: "Scrape, format, and extract text from legislative data"
+name: "OpenCivicData Pipeline Router"
+description: "Routes to scraping or text extraction actions"
 
 inputs:
   action-type:
@@ -24,11 +24,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-
     - name: Validate action type
       shell: bash
       run: |
@@ -38,52 +33,19 @@ runs:
         fi
         echo "✅ Action type validated: ${{ inputs.action-type }}"
 
-    - name: Run Scraping Action
+    - name: Route to Scraping Action
       if: inputs.action-type == 'scrape'
-      shell: bash
-      working-directory: ${{ github.action_path }}
-      env:
-        OPENSTATE_DATA_FOLDER: ${{ runner.temp }}/_working/_data
-        GIT_REPO_FOLDER: ${{ github.workspace }}
-        STATE: ${{ inputs.state }}
-      run: |
-        set -euo pipefail
-        cd "${{ github.action_path }}"
+      uses: ./actions/scrape
+      with:
+        state: ${{ inputs.state }}
+        github-token: ${{ inputs.github-token }}
+        use-scrape-cache: ${{ inputs.use-scrape-cache }}
+        force-update: ${{ inputs.force-update }}
 
-        # Setup Python
-        python -m pip install --upgrade pip
-        pip install pipenv
-        pipenv install --deploy
-
-        # Run scraping
-        pipenv run python scrape_and_format/main.py \
-          --state "$STATE" \
-          --openstates-data-folder "$OPENSTATE_DATA_FOLDER" \
-          --git-repo-folder "$GIT_REPO_FOLDER"
-
-    - name: Run Text Extraction Action
+    - name: Route to Text Extraction Action
       if: inputs.action-type == 'extract'
-      shell: bash
-      working-directory: ${{ github.action_path }}
-      run: |
-        echo "📄 Extracting text from PDFs and XMLs for ${{ inputs.state }}"
-
-        # Setup Python
-        python -m pip install --upgrade pip
-        pip install pipenv
-        pipenv install --deploy
-
-        # Check if the data directory exists in the calling repo
-        if [ ! -d "${{ github.workspace }}/data_output/data_processed" ]; then
-          echo "❌ Data directory not found: ${{ github.workspace }}/data_output/data_processed"
-          echo "Make sure the data pipeline has been run first"
-          exit 1
-        fi
-
-        # Run text extraction
-        pipenv run python text_extraction/main.py \
-          --state "${{ inputs.state }}" \
-          --data-folder "${{ github.workspace }}/data_output/data_processed" \
-          --output-folder "${{ github.workspace }}"
-
-        echo "✅ Text extraction complete"
+      uses: ./actions/extract
+      with:
+        state: ${{ inputs.state }}
+        github-token: ${{ inputs.github-token }}
+        force-update: ${{ inputs.force-update }}
