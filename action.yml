@@ -1,13 +1,21 @@
-name: "Text Extraction Action"
-description: "Extracts text from PDFs and XMLs in processed bill data"
+name: "OpenCivicData Pipeline"
+description: "Scrape, format, and extract text from legislative data"
 
 inputs:
+  action-type:
+    description: "Type of action: 'scrape' or 'extract'"
+    required: true
+    default: "extract"
   state:
     description: "State to process (2-letter abbreviation)"
     required: true
   github-token:
     description: "GitHub token for authentication"
     required: true
+  use-scrape-cache:
+    description: "Use cache for scraping (scrape only)"
+    required: false
+    default: "false"
   force-update:
     description: "Force push changes even if there are upstream changes"
     required: false
@@ -16,24 +24,56 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.13"
+    - name: Route to appropriate action
+      shell: bash
+      run: |
+        if [ "${{ inputs.action-type }}" = "scrape" ]; then
+          echo "🔄 Running scraping action..."
+          # Use the scrape action from subdirectory
+          cp actions/scrape/action.yml /tmp/scrape-action.yml
+        elif [ "${{ inputs.action-type }}" = "extract" ]; then
+          echo "📄 Running text extraction action..."
+          # Use the extract action from subdirectory
+          cp actions/extract/action.yml /tmp/extract-action.yml
+        else
+          echo "❌ Error: Invalid action-type. Must be 'scrape' or 'extract'"
+          exit 1
+        fi
 
-    - name: Install dependencies
+    - name: Run Scraping Action
+      if: inputs.action-type == 'scrape'
       shell: bash
       working-directory: ${{ github.action_path }}
+      env:
+        OPENSTATE_DATA_FOLDER: ${{ runner.temp }}/_working/_data
+        GIT_REPO_FOLDER: ${{ github.workspace }}
+        STATE: ${{ inputs.state }}
       run: |
+        set -euo pipefail
+        cd "${{ github.action_path }}"
+
+        # Setup Python
         python -m pip install --upgrade pip
         pip install pipenv
         pipenv install --deploy
 
-    - name: Extract Text from PDFs and XMLs
+        # Run scraping
+        pipenv run python scrape_and_format/main.py \
+          --state "$STATE" \
+          --openstates-data-folder "$OPENSTATE_DATA_FOLDER" \
+          --git-repo-folder "$GIT_REPO_FOLDER"
+
+    - name: Run Text Extraction Action
+      if: inputs.action-type == 'extract'
       shell: bash
       working-directory: ${{ github.action_path }}
       run: |
         echo "📄 Extracting text from PDFs and XMLs for ${{ inputs.state }}"
+
+        # Setup Python
+        python -m pip install --upgrade pip
+        pip install pipenv
+        pipenv install --deploy
 
         # Check if the data directory exists in the calling repo
         if [ ! -d "${{ github.workspace }}/data_output/data_processed" ]; then
@@ -42,38 +82,10 @@ runs:
           exit 1
         fi
 
-        # Run text extraction using the main.py interface
+        # Run text extraction
         pipenv run python text_extraction/main.py \
           --state "${{ inputs.state }}" \
           --data-folder "${{ github.workspace }}/data_output/data_processed" \
           --output-folder "${{ github.workspace }}"
 
         echo "✅ Text extraction complete"
-
-    - name: Commit Changes
-      shell: bash
-      run: |
-        echo "📝 Committing extracted text files"
-
-        # Configure git
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-
-        # Add changes
-        git add data_output/
-
-        # Commit if there are changes
-        if git diff --staged --quiet; then
-          echo "No changes to commit"
-        else
-          git commit -m "Extract text from PDFs/XMLs for ${{ inputs.state }} - $(date)"
-
-          # Push changes
-          if [ "${{ inputs.force-update }}" = "true" ]; then
-            git push --force-with-lease origin main
-          else
-            git push origin main
-          fi
-
-          echo "✅ Changes committed and pushed"
-        fi
