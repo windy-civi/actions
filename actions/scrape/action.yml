@@ -225,7 +225,7 @@ runs:
 
     - name: Install formatter deps (pipenv)
       shell: bash
-      working-directory: ${{ github.action_path }}
+      working-directory: ${{ github.action_path }}/../..
       env:
         PIPENV_VENV_IN_PROJECT: "1"
         PIPENV_IGNORE_VIRTUALENVS: "1"
@@ -243,7 +243,7 @@ runs:
         STATE: ${{ inputs.state }}
       run: |
         set -euo pipefail
-        cd "${{ github.action_path }}"
+        cd "${{ github.action_path }}/../.."
         pipenv run python scrape_and_format/main.py \
           --state "$STATE" \
           --openstates-data-folder "$OPENSTATE_DATA_FOLDER" \
