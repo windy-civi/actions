@@ -24,21 +24,14 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Route to appropriate action
+    - name: Validate action type
       shell: bash
       run: |
-        if [ "${{ inputs.action-type }}" = "scrape" ]; then
-          echo "🔄 Running scraping action..."
-          # Use the scrape action from subdirectory
-          cp actions/scrape/action.yml /tmp/scrape-action.yml
-        elif [ "${{ inputs.action-type }}" = "extract" ]; then
-          echo "📄 Running text extraction action..."
-          # Use the extract action from subdirectory
-          cp actions/extract/action.yml /tmp/extract-action.yml
-        else
+        if [ "${{ inputs.action-type }}" != "scrape" ] && [ "${{ inputs.action-type }}" != "extract" ]; then
           echo "❌ Error: Invalid action-type. Must be 'scrape' or 'extract'"
           exit 1
         fi
+        echo "✅ Action type validated: ${{ inputs.action-type }}"
 
     - name: Run Scraping Action
       if: inputs.action-type == 'scrape'
