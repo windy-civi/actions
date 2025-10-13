@@ -201,18 +201,14 @@ def extract_bill_text_from_metadata(
             "text/plain",  # Basic: Plain text
         ]
 
-        # Process versions first (primary bill text), then documents (supporting materials)
+        # Process only versions array (primary bill text)
+        # Skip documents array (contains amendments/supporting materials that often fail to download)
         arrays_to_process = []
 
-        # Add versions array first (prioritized - contains actual bill text)
+        # Add versions array (contains actual bill text)
         versions = metadata.get("versions", [])
         if versions:
             arrays_to_process.append(("versions", versions))
-
-        # Add documents array second (supporting documentation)
-        documents = metadata.get("documents", [])
-        if documents:
-            arrays_to_process.append(("documents", documents))
 
         if not arrays_to_process:
             # This is normal - not all bills have full text available
@@ -267,10 +263,14 @@ def extract_bill_text_from_metadata(
                 if "xml" in media_type.lower():
                     content = download_bill_text(url)
                 elif "html" in media_type.lower():
-                    content = download_html_content(url, download_with_retry, download_congress_gov_content)
+                    content = download_html_content(
+                        url, download_with_retry, download_congress_gov_content
+                    )
                 elif "pdf" in media_type.lower():
                     # Try enhanced strikethrough detection first
-                    strikethrough_result = extract_text_with_strikethroughs(url, download_with_retry)
+                    strikethrough_result = extract_text_with_strikethroughs(
+                        url, download_with_retry
+                    )
                     if strikethrough_result and strikethrough_result.get("raw_text"):
                         content = strikethrough_result["raw_text"]
                         strikethrough_info = {
@@ -534,4 +534,3 @@ if __name__ == "__main__":
     print(f"Processed: {stats['processed']}")
     print(f"Successful: {stats['successful']}")
     print(f"Errors: {stats['errors']}")
-
