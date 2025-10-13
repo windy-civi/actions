@@ -1,153 +1,230 @@
 # OpenCivicData Blockchain Transformer
 
-A GitHub Actions-powered pipeline that scrapes, cleans, and formats state legislative data from OpenStates into blockchain-style, versioned data structures.
+A GitHub Actions-powered pipeline that scrapes, formats, and extracts text from state and federal legislative data, organizing it into blockchain-style, versioned data structures.
 
 ## 🏗️ Repository Structure
 
-This repository provides **two composite actions** that can be used by state-specific repositories:
+This repository provides **two composite actions** for processing legislative data:
 
 ```
-├── action1/                    # Data Pipeline Action
-│   └── action.yml             # Scrapes and formats legislative data
-├── action2/                    # LLM Analysis Action
-│   └── action.yml             # Analyzes bills using LLM
-├── openstates_scraped_data_formatter/  # Core formatter code
-│   ├── main.py                # Main entry point
-│   ├── handlers/              # Data handlers
-│   ├── postprocessors/        # Post-processing logic
-│   └── utils/                 # Utility functions
-├── Pipfile                    # Python dependencies
-└── requirements.txt           # Alternative dependency management
+├── actions/
+│   ├── scrape/              # Scraping & Formatting Action
+│   │   └── action.yml       # Docker-based scraping + formatting
+│   └── extract/             # Text Extraction Action
+│       └── action.yml       # Extract text from PDFs/XMLs
+├── scrape_and_format/       # Scraping & formatting code
+│   ├── main.py              # Main entry point
+│   ├── handlers/            # Data handlers
+│   ├── postprocessors/      # Post-processing logic
+│   └── utils/               # Utility functions
+├── text_extraction/         # Text extraction code
+│   ├── main.py              # Extraction entry point
+│   └── utils/               # Extraction utilities
+│       ├── common.py        # Shared download & error tracking
+│       ├── xml_extractor.py # XML text extraction
+│       ├── html_extractor.py # HTML text extraction
+│       └── pdf_extractor.py # PDF text extraction
+├── Pipfile                  # Python dependencies
+└── README.md
 ```
 
 ## 🚀 Composite Actions
 
-### Action 1: Data Pipeline
+### Action 1: Scrape & Format Data
 
-- **Purpose**: Scrapes, cleans, and formats state legislative data
-- **Branch**: `bill-text-extraction`
-- **Functionality**:
-  - Scrapes data from OpenStates
-  - Formats into blockchain-style structure
-  - Commits formatted data to repository
+**Purpose**: Scrapes legislative data from OpenStates and formats it into blockchain-style structure
 
-### Action 2: LLM Analysis
+**Features**:
 
-- **Purpose**: Analyzes legislative bills using LLM
-- **Branch**: `llm-bill-tracker`
-- **Functionality**:
-  - Summarizes bill content
-  - Tracks version changes
-  - Generates human-readable reports
-  - Cost: ~$0.004 per bill
+- Docker-based scraping using OpenStates scrapers
+- Nightly artifact creation (rolling + immutable archives)
+- Automatic data formatting and organization
+- Commits formatted data to calling repository
 
-## 📋 Usage
-
-### For State Repositories
-
-State repositories can use these actions by creating workflows that call the composite actions:
+**Usage**:
 
 ```yaml
-# Example: .github/actions/action1/update-data.yml
-name: Update Data
-on:
-  schedule:
-    - cron: "0 1 * * *"
-  workflow_dispatch:
-
-jobs:
-  update-data:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: windy-civi/opencivicdata-blockchain-transformer@bill-text-extraction
-        with:
-          state: wy
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+- uses: windy-civi/opencivicdata-blockchain-transformer/actions/scrape@main
+  with:
+    state: tn # State abbreviation (or 'usa' for federal)
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    use-scrape-cache: false # Optional: reuse cached data
+    force-update: false # Optional: force push changes
 ```
 
+### Action 2: Extract Text
+
+**Purpose**: Extracts text from bill PDFs, XMLs, and HTMLs for analysis
+
+**Features**:
+
+- Extracts text from XML (structured bill text)
+- Extracts text from HTML (web pages)
+- Extracts text from PDF (with strikethrough detection)
+- Saves both original files and extracted text
+- Only processes bill versions (skips amendments to avoid blocking)
+
+**Usage**:
+
 ```yaml
-# Example: .github/actions/action2/llm-analysis.yml
-name: LLM Bill Analysis
+- uses: windy-civi/opencivicdata-blockchain-transformer/actions/extract@main
+  with:
+    state: tn # State abbreviation
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    force-update: false # Optional: force push changes
+```
+
+## 📋 Complete Workflow Example
+
+```yaml
+name: Legislative Data Pipeline
 on:
   schedule:
-    - cron: "0 2 * * *"
+    - cron: "0 1 * * *" # Daily at 1 AM UTC
   workflow_dispatch:
 
 jobs:
-  llm-analysis:
+  scrape-and-format:
+    name: Scrape & Format Data
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
-      - uses: windy-civi/opencivicdata-blockchain-transformer@llm-bill-tracker
         with:
-          state: wy
-          analyze-versions: true
-          generate-reports: true
+          fetch-depth: 0
+
+      - uses: windy-civi/opencivicdata-blockchain-transformer/actions/scrape@main
+        with:
+          state: tn
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  extract-text:
+    name: Extract Bill Text
+    runs-on: ubuntu-latest
+    needs: scrape-and-format
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: windy-civi/opencivicdata-blockchain-transformer/actions/extract@main
+        with:
+          state: tn
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ## 🔧 Setup
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.12+
 - pipenv (for dependency management)
-- OpenAI API key (for LLM analysis)
+- Docker (for scraping action)
 
-### Installation
+### Local Development
 
 ```bash
 # Install dependencies
 pipenv install
 
-# Set up environment variables
-export OPENAI_API_KEY="your-api-key-here"
+# Run scraping locally
+pipenv run python scrape_and_format/main.py \
+  --state tn \
+  --openstates-data-folder ./data \
+  --git-repo-folder ./output
+
+# Run text extraction locally
+pipenv run python text_extraction/main.py \
+  --state tn \
+  --data-folder ./data_output/data_processed \
+  --output-folder ./output
 ```
 
 ## 📊 Output Format
 
-### Data Pipeline Output
+### Scraping Output
 
-Formatted data is saved to `data_output/data_processed/`, organized by session and bill:
+Data is saved to `data_output/data_processed/`, organized by jurisdiction and session:
 
-- `logs/`: Timestamped JSONs for bill actions, events, and votes
-- `files/`: Source documents (if enabled)
-- `metadata.json`: Bill metadata at the root of each bill folder
+```
+data_output/data_processed/
+└── country:us/
+    └── state:tn/
+        └── sessions/
+            └── 113/
+                └── bills/
+                    └── HB1234/
+                        ├── metadata.json    # Bill metadata
+                        ├── logs/            # Actions, events, votes
+                        └── files/           # Extracted text (if text extraction run)
+```
 
-### LLM Analysis Output
+### Text Extraction Output
 
-- **Bill summaries** with key provisions
-- **Version change tracking** between bill versions
-- **Human-readable reports** of legislative changes
-- **Downloadable artifacts** with full analysis
+For each bill version, creates:
 
-## 💰 Cost Analysis
+- **Original file**: `BILLS-119hr1enr.xml` (or .html, .pdf)
+- **Extracted text**: `BILLS-119hr1enr_extracted.txt`
 
-- **Data Pipeline**: Free (no external API calls)
-- **LLM Analysis**: ~$0.004 per bill
-- **100 bills**: ~$0.40
-- **1,000 bills**: ~$4.00
+Extracted text files include:
+
+- Title and official title
+- Number of sections
+- Source information
+- Full extracted text
+
+### Error Tracking
+
+Failed extractions are saved to `data_not_processed/text_extraction_errors/`:
+
+- Individual error files per failed bill
+- Summary reports with statistics
+- Categorized by error type (download/parsing/save)
 
 ## 🎯 Branches
 
-- **`main`**: Stable releases
-- **`bill-text-extraction`**: Data pipeline functionality
-- **`llm-bill-tracker`**: LLM analysis functionality
+- **`main`**: Stable production code
+- **`refactor-text-extraction`**: Text extraction improvements
+- **`backup-anti-blocking-code`**: Preserved complex anti-blocking code
 
-## 📚 Documentation
+## 📚 Key Features
 
-- [LLM Setup Guide](LLM_SETUP_GUIDE.md) - How to use LLM analysis
-- [Wyoming Repository Setup](WYOMING_REPO_SETUP.md) - Complete setup guide for state repositories
-- [Project Rules](PROJECT_RULES.md) - Data handling rules and standards
+### Modular Text Extraction
+
+- Separate extractors for XML, HTML, and PDF
+- Shared download and error tracking utilities
+- PDF strikethrough detection for legislative amendments
+- Clean, maintainable code structure
+
+### Smart Processing
+
+- Only processes bill versions (actual text)
+- Skips amendment documents (to avoid blocking)
+- Prioritizes XML > HTML > PDF for best quality
+- Handles multiple versions per bill
+
+### Error Handling
+
+- Comprehensive error tracking
+- Individual error files for debugging
+- Summary reports with statistics
+- Continues processing on failures
+
+## 💰 Cost
+
+- **Scraping**: Free (uses OpenStates Docker image)
+- **Text Extraction**: Free (no external APIs)
+- **GitHub Actions**: Free for public repos, included minutes for private repos
 
 ## 🤝 Contributing
 
-This is part of the Windy Civi project. For questions, improvements, or help:
+This is part of the Windy Civi project. For questions or improvements:
 
 - Open an issue
-- Join our Slack
-- Check the documentation
+- Submit a pull request
+- Check the documentation in `project_docs/`
 
 ---
 
-**Ready to transform legislative data!** 🏛️📊
+**Transform legislative data into actionable insights!** 🏛️📊
