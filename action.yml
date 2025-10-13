@@ -1,241 +1,84 @@
-name: 'OpenStates Data Pipeline'
-description: 'Complete pipeline to scrape, sanitize, and format OpenStates data'
-
-# USAGE EXAMPLE:
-# This composite action requires secrets to be passed as inputs when used by other repositories:
-#
-# - name: Run OpenStates Pipeline
-#   uses: ./
-#   with:
-#     state: 'tx'
-#     github-token: ${{ secrets.GITHUB_TOKEN }}
-#     allow-session-fix: 'false'
-#
-# SECRETS HANDLING:
-# - github-token: Pass ${{ secrets.GITHUB_TOKEN }} or a PAT with repo permissions
-# - All other secrets must be explicitly passed as inputs
+name: "OpenCivicData Pipeline"
+description: "Scrape, format, and extract text from legislative data"
 
 inputs:
+  action-type:
+    description: "Type of action: 'scrape' or 'extract'"
+    required: true
+    default: "extract"
   state:
-    description: 'State abbreviation (e.g., id, il, tx, ny)'
+    description: "State to process (2-letter abbreviation)"
     required: true
   github-token:
-    description: 'GitHub token for creating releases and downloading artifacts'
+    description: "GitHub token for authentication"
     required: true
-    default: '${{ github.token }}'
-  allow-session-fix:
-    description: 'Allow interactive session fixes when session names are missing'
-    required: false
-    default: 'false'
   use-scrape-cache:
-    description: 'Skip scraping and use the most recent artifact from this repository instead'
+    description: "Use cache for scraping (scrape only)"
     required: false
-    default: 'false'
+    default: "false"
   force-update:
-    description: 'Force push changes even if there are upstream changes (use with caution)'
+    description: "Force push changes even if there are upstream changes"
     required: false
-    default: 'false'
+    default: "false"
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.13"
-
-    - name: Setup Working Directory
+    - name: Validate action type
       shell: bash
-      working-directory: ${{ github.workspace }}
       run: |
-        echo "🔧 Setting up working directory..."
-        # Create working directory outside git repo
-        mkdir -p ${RUNNER_TEMP}
-        mkdir -p ${RUNNER_TEMP}/scrape-snapshot-nightly
-        echo "✅ Working directory created at ${RUNNER_TEMP}"
+        if [ "${{ inputs.action-type }}" != "scrape" ] && [ "${{ inputs.action-type }}" != "extract" ]; then
+          echo "❌ Error: Invalid action-type. Must be 'scrape' or 'extract'"
+          exit 1
+        fi
+        echo "✅ Action type validated: ${{ inputs.action-type }}"
 
-    - name: Cache Scrapes
-      if: inputs.use-scrape-cache != 'true'
-      uses: actions/cache@v4
-      with:
-        path: ${{ runner.temp }}/cache
-        key: cache-scrapes-${{ inputs.state }}-${{ github.sha }}
-        restore-keys: |
-          cache-scrapes-${{ inputs.state }}-
-          cache-scrape
-
-    - name: Scrape Data
-      if: inputs.use-scrape-cache != 'true'
-      working-directory: ${{ runner.temp }}
+    - name: Run Scraping Action
+      if: inputs.action-type == 'scrape'
       shell: bash
+      working-directory: ${{ github.action_path }}
       env:
-        DOCKER_IMAGE_TAG: 6a0ce774f2c12b7fa61b25d6c964212dfe3b636c
-      run: |
-        echo "🕷️ Starting data scraping for ${{ inputs.state }}..."
-        # Ensure directories exist
-        mkdir -p ./_working/_data
-        mkdir -p ./_working/_cache
-        
-        echo "🐳 Running scraper in Docker container..."
-        docker pull openstates/scrapers:$DOCKER_IMAGE_TAG
-        docker run \
-            -v "$(pwd)/_working/_data":/opt/openstates/openstates/_data \
-            -v "$(pwd)/_working/_cache":/opt/openstates/openstates/_cache \
-            openstates/scrapers:$DOCKER_IMAGE_TAG \
-            ${{ inputs.state }} bills --scrape --fastmode
-        echo "✅ Data scraping completed"
-        
-        echo "📦 Creating archive of scraped data..."
-        tar zcvf scrape-snapshot-nightly.tgz --mode=755 -C _working/_data/${{ inputs.state }} .
-        echo "✅ Data archived successfully"
-
-    - name: Upload OCD Scraped Data as Artifact
-      if: inputs.use-scrape-cache != 'true'
-      uses: actions/upload-artifact@v4
-      with:
-        name: scrape-snapshot-nightly
-        path: ${{ runner.temp }}/scrape-snapshot-nightly.tgz
-        retention-days: 30
-
-    - name: Update Nightly Release
-      if: inputs.use-scrape-cache != 'true'
-      uses: andelf/nightly-release@v1
-      env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
-      with:
-        tag_name: nightly
-        name: "Nightly release of legislation $$"
-        prerelease: false
-        files: |
-          ${{ runner.temp }}/scrape-snapshot-nightly.tgz
-
-    - name: Download asset scrape-snapshot-nightly.tgz from nightly release
-      uses: Xotl/cool-github-releases@v1
-      with:
-        mode: download
-        tag_name: nightly
-        assets: scrape-snapshot-nightly.tgz
-        github_token: ${{ inputs.github-token }}
-
-    - name: Extract Nightly Scrape Data
-      shell: bash
-      working-directory: ${{ github.workspace }}
-      run: |
-        echo "📦 Extracting nightly scrape data..."
-        tar xzf scrape-snapshot-nightly.tgz -C ${{ runner.temp }}/scrape-snapshot-nightly
-        rm scrape-snapshot-nightly.tgz
-        echo "✅ Extraction complete"
-
-    - name: Verify count of files are present
-      shell: bash
-      working-directory: ${{ runner.temp }}/scrape-snapshot-nightly
-      run: |
-        echo "📂 Counting JSON files..."
-        find . -type f -name "*.json" | wc -l
-        echo "✅ JSON file count complete"
-
-    - name: Sanitize Data (removes _id and scraped_at)
-      shell: bash
-      working-directory: ${{ runner.temp }}/scrape-snapshot-nightly
-      run: |
-        echo "🧹 Sanitizing JSON data (removing _id and scraped_at fields)..."
-        # Initialize counter
-        count=0
-        # Sanitize JSON files with proper error handling and count
-        find ./ -type f -name "*.json" -exec bash -c '
-          if [ -f "{}" ]; then
-            jq "del(..|._id?, .scraped_at?)" "{}" > "{}.tmp" && mv "{}.tmp" "{}"
-            echo "$((++count))" > count.tmp
-          fi
-        ' \;
-        count=$(cat count.tmp)
-        rm count.tmp
-        echo "✅ Data sanitization completed - processed $count files"
-
-    - name: Checkout Caller Repository
-      uses: actions/checkout@v4
-      with:
-        token: ${{ inputs.github-token }}
-        repository: ${{ github.repository }}
-
-    - name: Clean Generated Folders If Force Update
-      if: ${{ inputs.force-update == 'true' }}
-      shell: bash
-      working-directory: ${{ github.workspace }}
-      run: |
-        echo "🗑️ Force update enabled - cleaning generated folders..."
-        rm -rf bill_session_mapping
-        rm -rf data_output
-        rm -rf sessions
-        echo "✅ Cleaned generated folders"
-
-    - name: Convert Data To Blockchain Format
-      shell: bash
-      env:
-        OPENSTATE_DATA_FOLDER: ${{ runner.temp }}/scrape-snapshot-nightly
+        OPENSTATE_DATA_FOLDER: ${{ runner.temp }}/_working/_data
         GIT_REPO_FOLDER: ${{ github.workspace }}
         STATE: ${{ inputs.state }}
       run: |
-        cd ${{ github.action_path }}
+        set -euo pipefail
+        cd "${{ github.action_path }}"
+
+        # Setup Python
+        python -m pip install --upgrade pip
         pip install pipenv
-        pipenv install
-        pipenv run python ${{ github.action_path }}/openstates_scraped_data_formatter/main.py --state $STATE --openstates-data-folder $OPENSTATE_DATA_FOLDER --git-repo-folder $GIT_REPO_FOLDER
+        pipenv install --deploy
 
-    - name: Commit and Push Changes
+        # Run scraping
+        pipenv run python scrape_and_format/main.py \
+          --state "$STATE" \
+          --openstates-data-folder "$OPENSTATE_DATA_FOLDER" \
+          --git-repo-folder "$GIT_REPO_FOLDER"
+
+    - name: Run Text Extraction Action
+      if: inputs.action-type == 'extract'
       shell: bash
-      env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
+      working-directory: ${{ github.action_path }}
       run: |
-        echo "🔧 Setting up git configuration..."
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        git config --global user.name "github-actions[bot]"
-        
-        echo "📊 Checking git status..."
-        git status
-        
-        echo "📁 Adding all changes..."
-        git add .
-        
-        echo "📝 Committing changes..."
-        git diff --cached --quiet && echo "No changes to commit" || git commit -m "Automated OpenStates data update for ${{ inputs.state }}"
-        
-        echo "🚀 Pushing changes..."
-        if [ "${{ inputs.force-update }}" = "true" ]; then
-          echo "⚠️ Force pushing changes..."
-          git push --force-with-lease || echo "⚠️ Force push failed"
-        else
-          git push || echo "⚠️ Git push failed — possibly due to upstream changes."
+        echo "📄 Extracting text from PDFs and XMLs for ${{ inputs.state }}"
+
+        # Setup Python
+        python -m pip install --upgrade pip
+        pip install pipenv
+        pipenv install --deploy
+
+        # Check if the data directory exists in the calling repo
+        if [ ! -d "${{ github.workspace }}/data_output/data_processed" ]; then
+          echo "❌ Data directory not found: ${{ github.workspace }}/data_output/data_processed"
+          echo "Make sure the data pipeline has been run first"
+          exit 1
         fi
-        
-        echo "✅ Repository update completed"
 
-    # - name: Copy Scraped Data to Repo
-    #     run: |
-    #       mkdir -p "$GITHUB_WORKSPACE/_data/$STATE"
-    #       cp -r "${RUNNER_TEMP}/_working/_data/$STATE"/* "$GITHUB_WORKSPACE/_data/$STATE/"
+        # Run text extraction
+        pipenv run python text_extraction/main.py \
+          --state "${{ inputs.state }}" \
+          --data-folder "${{ github.workspace }}/data_output/data_processed" \
+          --output-folder "${{ github.workspace }}"
 
-    # - name: Update Repo
-    #     env:
-    #       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    #     run: |
-    #       git config user.email "no_email"
-    #       git config user.name "Windy Civi Bot"
-    #       git fetch origin main
-    #       git pull origin main --rebase || true
-
-    #       git add _data data_output bill_session_mapping sessions
-    #       git diff --cached --quiet && echo "No changes to commit" || git commit -m "Automated report update (report dated ${{ steps.get-date.outputs.date }})"
-    #       git push || echo "⚠️ Git push failed — possibly due to upstream changes."
- # - name: Update Repo
-      #   env:
-      #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   shell: bash
-      #   run: |
-      #     git config user.email "no_email"
-      #     git config user.name "Windy Civi Bot"
-      #     git fetch origin main
-      #     git pull origin main --rebase || true
-
-      #     git add data_output bill_session_mapping sessions
-      #     git diff --cached --quiet && echo "No changes to commit" || git commit -m "Automated report update (report dated ${{ steps.get-date.outputs.date }})"
-      #     git push || echo "⚠️ Git push failed — possibly due to upstream changes."
+        echo "✅ Text extraction complete"

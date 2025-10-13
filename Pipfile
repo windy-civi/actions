@@ -10,6 +10,14 @@ sort_pipfile = true
 click = "*"
 pytest = "*"
 requests = "*"
+xmltodict = "*"
+python-dateutil = "*"
+orjson = "*"
+rich = "*"
+pdfplumber = "*"
+PyPDF2 = "*"
+PyMuPDF = "*"
+beautifulsoup4 = "*"
 
 [dev-packages]
 
