@@ -1,8 +1,8 @@
 # New Mexico (NM) - 2025 1st Special Session Not Configured
 
-**Status:** 🔴 Failing  
-**Date Reported:** October 14, 2025  
-**Category:** Scraper Issue (Upstream)  
+**Status:** 🔴 Failing
+**Date Reported:** October 14, 2025
+**Category:** Scraper Issue (Upstream)
 **Error Type:** `CommandError: Session not found`
 
 ## Problem
@@ -12,8 +12,8 @@ New Mexico called a "2025 1st Special" legislative session, but the OpenStates s
 ## Error Details
 
 ```
-openstates.exceptions.CommandError: 
-Session(s) 2025 1st Special were reported by NewMexico.get_session_list() 
+openstates.exceptions.CommandError:
+Session(s) 2025 1st Special were reported by NewMexico.get_session_list()
 but were not found in NewMexico.legislative_sessions or NewMexico.ignored_scraped_sessions.
 ```
 
@@ -27,8 +27,9 @@ but were not found in NewMexico.legislative_sessions or NewMexico.ignored_scrape
 ## Root Cause
 
 **Timing Issue:**
+
 - New Mexico started a special legislative session in January 2025
-- OpenStates scraper detected it via `get_session_list()` 
+- OpenStates scraper detected it via `get_session_list()`
 - But "2025 1st Special" not yet added to scraper configuration
 - There's always a lag when states start new sessions
 

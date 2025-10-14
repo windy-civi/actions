@@ -18,11 +18,13 @@ This directory tracks known issues with state scrapers and our formatter code.
 
 - [Illinois - XPath Selector Broken](scraper/illinois_html_structure.md)
 
+### Data Extraction Issues
+
+- [Guam - Not Extracting Dates or Actions](scraper/guam_missing_dates_actions.md)
+
 ## 🟡 Active Formatter Issues
 
-### Data Quality Issues
-
-- [Guam - No Actions Array](formatter/guam_no_actions.md)
+None currently - Guam issue moved to scraper category (root cause is upstream)
 
 ## ✅ Working States
 

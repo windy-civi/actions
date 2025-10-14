@@ -1,8 +1,8 @@
 # Texas (TX) - 89(2) 2025 Session Not Configured
 
-**Status:** 🔴 Failing  
-**Date Reported:** October 14, 2025  
-**Category:** Scraper Issue (Upstream)  
+**Status:** 🔴 Failing
+**Date Reported:** October 14, 2025
+**Category:** Scraper Issue (Upstream)
 **Error Type:** `CommandError: Session not found`
 
 ## Problem
@@ -12,8 +12,8 @@ Texas started the "89th Legislature, 2nd Called Session (2025)", but the OpenSta
 ## Error Details
 
 ```
-openstates.exceptions.CommandError: 
-Session(s) 89(2) - 2025 were reported by Texas.get_session_list() 
+openstates.exceptions.CommandError:
+Session(s) 89(2) - 2025 were reported by Texas.get_session_list()
 but were not found in Texas.legislative_sessions or Texas.ignored_scraped_sessions.
 ```
 
@@ -27,6 +27,7 @@ but were not found in Texas.legislative_sessions or Texas.ignored_scraped_sessio
 ## Root Cause
 
 **Timing Issue:**
+
 - Texas called a second special session for their 89th Legislature in 2025
 - OpenStates scraper detected it via `get_session_list()`
 - But "89(2) - 2025" not yet added to scraper configuration
