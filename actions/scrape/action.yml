@@ -49,7 +49,7 @@ runs:
       shell: bash
       working-directory: ${{ runner.temp }}
       env:
-        DOCKER_IMAGE_TAG: 6a0ce774f2c12b7fa61b25d6c964212dfe3b636c
+        DOCKER_IMAGE_TAG: latest
       run: |
         set -euo pipefail
         mkdir -p _working/_data _working/_cache
