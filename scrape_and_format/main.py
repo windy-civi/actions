@@ -77,6 +77,8 @@ def main(
         EVENT_ARCHIVE_FOLDER,
         DATA_NOT_PROCESSED_FOLDER,
         latest_timestamps,
+        STATE_ABBR,
+        DATA_PROCESSED_FOLDER,
     )
 
     # 4. Route and process by handler (returns counts)

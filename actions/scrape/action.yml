@@ -1,5 +1,5 @@
-name: "OpenStates Data Pipeline"
-description: "Scrape via Docker, persist nightly artifact (rolling + immutable), format to blockchain layout, and push to caller repo"
+name: "OpenStates Scraper"
+description: "Scrape legislative data via Docker and persist as artifacts"
 
 inputs:
   state:
@@ -13,10 +13,17 @@ inputs:
     description: "Skip scraping and reuse the latest nightly artifact"
     required: false
     default: "false"
-  force-update:
-    description: "Force push even if upstream changed"
-    required: false
-    default: "false"
+
+outputs:
+  scrape-artifact-name:
+    description: "Name of the uploaded scrape artifact"
+    value: "scrape-snapshot-nightly"
+  scrape-tarball-path:
+    description: "Path to the scrape tarball"
+    value: "${{ github.workspace }}/scrape-snapshot-nightly.tgz"
+  manifest-path:
+    description: "Path to the scrape manifest"
+    value: "${{ github.workspace }}/scrape-manifest.json"
 
 runs:
   using: "composite"
@@ -162,7 +169,7 @@ runs:
         JSON
         echo "🧾 Manifest written: scrape-manifest.json"
 
-    - name: Publish immutable archive (date-stamped release) (date-stamped release)
+    - name: Publish immutable archive (date-stamped release)
       if: env.SCRAPE_TARBALL == 'present'
       uses: softprops/action-gh-release@v2
       env:
@@ -194,83 +201,4 @@ runs:
         if [ ! -f "${GITHUB_WORKSPACE}/scrape-snapshot-nightly.tgz" ]; then
           echo "::error::No scrape tarball found (fresh scrape failed and nightly not available)."
           exit 1
-        fi
-
-    - name: Extract tarball for formatter
-      shell: bash
-      run: |
-        set -euo pipefail
-        mkdir -p "${RUNNER_TEMP}/scrape-snapshot-nightly"
-        tar xzf "${GITHUB_WORKSPACE}/scrape-snapshot-nightly.tgz" -C "${RUNNER_TEMP}/scrape-snapshot-nightly"
-        echo "✅ Extraction complete"
-
-    - name: Ensure jq present
-      shell: bash
-      run: |
-        set -euo pipefail
-        command -v jq >/dev/null 2>&1 || sudo apt-get update && sudo apt-get install -y jq
-
-    - name: Sanitize scraped JSON (_id, scraped_at)
-      shell: bash
-      working-directory: ${{ runner.temp }}/scrape-snapshot-nightly
-      run: |
-        set -euo pipefail
-        tmpc="${RUNNER_TEMP}/san_count.txt"
-        : > "$tmpc"
-        find . -type f -name "*.json" -print0 | while IFS= read -r -d '' f; do
-          jq 'del(..|._id?, .scraped_at?)' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
-          echo 1 >> "$tmpc"
-        done
-        echo "Sanitized $(wc -l < "$tmpc") files"
-
-    - name: Install formatter deps (pipenv)
-      shell: bash
-      working-directory: ${{ github.action_path }}/../..
-      env:
-        PIPENV_VENV_IN_PROJECT: "1"
-        PIPENV_IGNORE_VIRTUALENVS: "1"
-      run: |
-        set -euo pipefail
-        python -m pip install --upgrade pip
-        pip install pipenv
-        pipenv install --deploy --dev
-
-    - name: Run formatter
-      shell: bash
-      env:
-        OPENSTATE_DATA_FOLDER: ${{ runner.temp }}/scrape-snapshot-nightly
-        GIT_REPO_FOLDER: ${{ github.workspace }}
-        STATE: ${{ inputs.state }}
-      run: |
-        set -euo pipefail
-        cd "${{ github.action_path }}/../.."
-        pipenv run python scrape_and_format/main.py \
-          --state "$STATE" \
-          --openstates-data-folder "$OPENSTATE_DATA_FOLDER" \
-          --git-repo-folder "$GIT_REPO_FOLDER"
-
-    - name: Clean ephemeral build dirs
-      shell: bash
-      run: |
-        set -euo pipefail
-        rm -rf bill_session_mapping sessions || true
-
-    - name: Commit & push to caller repo
-      shell: bash
-      run: |
-        set -euo pipefail
-        git config --local user.email "github-actions[bot]@users.noreply.github.com"
-        git config --local user.name "github-actions[bot]"
-
-        # Only commit the actual deliverables
-        git add data_output/ || true
-        if git diff --staged --quiet; then
-          echo "No changes to commit"
-        else
-          git commit -m "Automated OpenStates data update for ${{ inputs.state }}"
-          if [ "${{ inputs.force-update }}" = "true" ]; then
-            git push --force-with-lease origin main
-          else
-            git push origin main
-          fi
         fi

@@ -28,7 +28,7 @@ def handle_event(
     using a consistent timestamped format to match bill action logs.
     """
     event_id = data.get("_id") or filename.replace(".json", "")
-    
+
     start_date = validate_required_field(
         data,
         "start_date",

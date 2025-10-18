@@ -67,7 +67,10 @@ def handle_vote_event(
     else:
         current_dt = to_dt_obj(timestamp)
         latest_timestamps["vote_events"] = update_latest_timestamp(
-            "vote_events", current_dt, latest_timestamps["vote_events"], latest_timestamps
+            "vote_events",
+            current_dt,
+            latest_timestamps["vote_events"],
+            latest_timestamps,
         )
 
     write_vote_event_log(data, save_path / "logs")
