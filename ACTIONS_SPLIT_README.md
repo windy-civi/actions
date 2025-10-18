@@ -102,6 +102,7 @@ jobs:
 - `force-update`: Force push even if upstream changed (optional, default: "false")
 
 **Features**:
+
 - **Incremental Processing**: Automatically skips bills that have already been processed, checking the `text_extraction_latest_update` timestamp in metadata
 - **Auto-Save Failsafe**: Commits and pushes progress every 30 minutes to prevent data loss if the job times out
 - **Resume Capability**: If the job times out (6-hour GitHub limit), restart it and it will continue from where it left off
