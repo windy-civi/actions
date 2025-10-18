@@ -1,0 +1,50 @@
+# Example caller workflow for text extraction
+# Copy this to your state data repo as .github/workflows/extract-text.yml
+
+name: Text Extraction from Bills
+
+on:
+  schedule:
+    - cron: "0 4 * * *"  # Daily at 4 AM UTC (adjust as needed)
+  workflow_dispatch:
+    inputs:
+      state:
+        description: "State to process"
+        required: false
+        default: ""  # Will use repo default if not specified
+
+jobs:
+  extract-text:
+    name: Text Extraction
+    runs-on: ubuntu-latest
+    timeout-minutes: 330  # 5.5 hours (recommended for large datasets)
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout state repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Run text extraction action
+        uses: windy-civi/opencivicdata-blockchain-transformer/actions/extract@main
+        with:
+          state: ${{ inputs.state || 'UPDATE_STATE_HERE' }}  # Change UPDATE_STATE_HERE to your state code (e.g., wy, usa, il)
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          force-update: "false"
+
+      - name: Display extraction summary
+        if: always()
+        shell: bash
+        run: |
+          echo "📊 Text Extraction Summary"
+          echo "================================"
+          echo "✅ Check data_output/data_processed for extracted text files"
+          echo "📄 Look for *_extracted.txt files in bills/*/files/ directories"
+          echo ""
+          echo "ℹ️  Features:"
+          echo "  - Incremental processing (skips already-processed bills)"
+          echo "  - Auto-saves progress every 30 minutes"
+          echo "  - Can be safely restarted if timeout occurs"
+

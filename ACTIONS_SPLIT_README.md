@@ -37,7 +37,9 @@ Update your workflow to use two separate jobs. See `docs/example-caller-workflow
 
 #### Independent Text Extraction
 
-For text extraction as a separate job (recommended for long-running operations), see `docs/example-text-extraction-workflow.yml`:
+**Quick Start**: Copy `docs/example-caller-text-extraction.yml` to your state repo as `.github/workflows/extract-text.yml` and update the state code.
+
+For a more advanced example with scheduling and state selection, see `docs/example-text-extraction-workflow.yml`.
 
 ```yaml
 jobs:
@@ -142,9 +144,10 @@ Replace your current single job with two separate jobs as shown above.
 
 - `actions/scrape/action.yml` - New scrape-only action
 - `actions/format/action.yml` - New format-only action
-- `actions/extract/action.yml` - Text extraction action (unchanged)
+- `actions/extract/action.yml` - Text extraction action with incremental processing and auto-save
 - `docs/example-caller-workflow.yml` - Example caller repo workflow (scrape + format)
-- `docs/example-text-extraction-workflow.yml` - Independent text extraction workflow
+- `docs/example-caller-text-extraction.yml` - Simple example for caller repos (recommended)
+- `docs/example-text-extraction-workflow.yml` - Advanced text extraction workflow example
 - `text_extraction/main.py` - Added incremental processing support
 - `text_extraction/utils/text_extraction.py` - Added incremental processing logic
 - `ACTIONS_SPLIT_README.md` - This documentation
