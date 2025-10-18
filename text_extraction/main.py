@@ -26,7 +26,14 @@ from utils.text_extraction import process_bills_in_batch
     required=False,
     help="Path to the calling repo's root folder for error reports (optional).",
 )
-def main(state: str, data_folder: Path, output_folder: Path = None):
+@click.option(
+    "--incremental",
+    is_flag=True,
+    help="Enable incremental processing - only extract text for bills that haven't been processed or have been updated.",
+)
+def main(
+    state: str, data_folder: Path, output_folder: Path = None, incremental: bool = False
+):
     """
     Extract text from PDFs and XMLs in processed bill data.
 
@@ -52,13 +59,20 @@ def main(state: str, data_folder: Path, output_folder: Path = None):
 
     # Run text extraction
     try:
-        stats = process_bills_in_batch(data_folder, output_folder=output_folder, state=state)
+        stats = process_bills_in_batch(
+            data_folder,
+            output_folder=output_folder,
+            state=state,
+            incremental=incremental,
+        )
 
         print(f"\n📊 Text Extraction Complete!")
         print(f"Total bills: {stats['total_bills']}")
         print(f"Processed: {stats['processed']}")
         print(f"Successful: {stats['successful']}")
         print(f"Errors: {stats['errors']}")
+        if stats.get("skipped", 0) > 0:
+            print(f"Skipped (already processed): {stats['skipped']}")
 
         if stats["errors"] > 0:
             print(f"⚠️ {stats['errors']} bills had errors during processing")

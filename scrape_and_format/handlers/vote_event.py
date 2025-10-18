@@ -1,11 +1,16 @@
 import json
 from pathlib import Path
-from utils.file_utils import format_timestamp, record_error_file, write_vote_event_log
+from utils.file_utils import (
+    format_timestamp,
+    validate_required_field,
+    write_vote_event_log,
+)
 from utils.timestamp_tracker import (
     update_latest_timestamp,
     to_dt_obj,
     LatestTimestamps,
 )
+from utils.path_utils import build_bill_path
 
 
 def handle_vote_event(
@@ -26,40 +31,23 @@ def handle_vote_event(
     Skips and logs errors if bill_identifier is missing.
     """
 
-    referenced_bill_id = data.get("bill_identifier")
+    referenced_bill_id = validate_required_field(
+        data,
+        "bill_identifier",
+        filename,
+        DATA_NOT_PROCESSED_FOLDER,
+        "from_handle_vote_event_missing_bill_identifier",
+        "Vote missing bill_identifier",
+    )
     if not referenced_bill_id:
-        print("⚠️ Warning: Vote missing bill_identifier")
-        record_error_file(
-            DATA_NOT_PROCESSED_FOLDER,
-            "from_handle_vote_event_missing_bill_identifier",
-            filename,
-            data,
-            original_filename=filename,
-        )
         return False
 
-    bill_id = referenced_bill_id.replace(" ", "")
     session_id = data.get("legislative_session", "unknown-session")
-    is_usa = STATE_ABBR.lower() == "usa"
 
-    if is_usa:
-        save_path = Path(DATA_PROCESSED_FOLDER).joinpath(
-            'country:us',
-            "congress",
-            "sessions",
-            session_id,
-            "bills",
-            bill_id,
-        )
-    else:
-        save_path = Path(DATA_PROCESSED_FOLDER).joinpath(
-            'country:us',
-            f"state:{STATE_ABBR.lower()}",
-            "sessions",
-            session_id,
-            "bills",
-            bill_id,
-        )
+    # Use centralized path builder
+    save_path = build_bill_path(
+        DATA_PROCESSED_FOLDER, STATE_ABBR, session_id, referenced_bill_id
+    )
 
     (save_path / "logs").mkdir(parents=True, exist_ok=True)
     (save_path / "files").mkdir(parents=True, exist_ok=True)
@@ -79,7 +67,10 @@ def handle_vote_event(
     else:
         current_dt = to_dt_obj(timestamp)
         latest_timestamps["vote_events"] = update_latest_timestamp(
-            "vote_events", current_dt, latest_timestamps["vote_events"], latest_timestamps
+            "vote_events",
+            current_dt,
+            latest_timestamps["vote_events"],
+            latest_timestamps,
         )
 
     write_vote_event_log(data, save_path / "logs")
