@@ -42,13 +42,68 @@ runs:
           exit 1
         fi
 
-        # Run text extraction using the main.py interface
+        # Configure git for periodic commits
+        cd "${{ github.workspace }}"
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+
+        # Create a flag file to control the auto-commit loop
+        touch /tmp/text_extraction_running
+
+        # Start background process for periodic commits (every 30 minutes)
+        (
+          while [ -f /tmp/text_extraction_running ]; do
+            sleep 1800  # 30 minutes
+            
+            if [ -f /tmp/text_extraction_running ]; then
+              cd "${{ github.workspace }}"
+              
+              # Check if there are changes
+              if ! git diff --quiet data_output/ || ! git diff --staged --quiet data_output/; then
+                echo "⏰ [$(date)] Auto-committing progress to prevent data loss..."
+                
+                git add data_output/
+                
+                if ! git diff --staged --quiet; then
+                  git commit -m "🔄 Auto-save text extraction progress for ${{ inputs.state }} - $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+                  
+                  # Push with retries
+                  for i in 1 2 3; do
+                    if git push origin main 2>/dev/null; then
+                      echo "✅ Progress saved (attempt $i)"
+                      break
+                    else
+                      echo "⚠️ Push failed (attempt $i), retrying..."
+                      sleep 5
+                    fi
+                  done
+                fi
+              fi
+            fi
+          done
+        ) &
+        
+        AUTO_COMMIT_PID=$!
+        echo "🔄 Auto-commit process started (PID: $AUTO_COMMIT_PID)"
+
+        # Run text extraction using the main.py interface with incremental flag
+        EXIT_CODE=0
         pipenv run python text_extraction/main.py \
           --state "${{ inputs.state }}" \
           --data-folder "${{ github.workspace }}/data_output/data_processed" \
-          --output-folder "${{ github.workspace }}"
+          --output-folder "${{ github.workspace }}" \
+          --incremental || EXIT_CODE=$?
 
-        echo "✅ Text extraction complete"
+        # Stop the auto-commit background process
+        rm -f /tmp/text_extraction_running
+        wait $AUTO_COMMIT_PID 2>/dev/null || true
+
+        if [ $EXIT_CODE -eq 0 ]; then
+          echo "✅ Text extraction complete"
+        else
+          echo "⚠️ Text extraction ended with code $EXIT_CODE (progress has been auto-saved)"
+          exit $EXIT_CODE
+        fi
 
     - name: Commit Changes
       shell: bash

@@ -31,7 +31,13 @@ The monolithic `actions/scrape/action.yml` has been split into two separate acti
 
 ### For Caller Repos
 
+#### Basic Pipeline (Scrape + Format)
+
 Update your workflow to use two separate jobs. See `docs/example-caller-workflow.yml` for a complete example:
+
+#### Independent Text Extraction
+
+For text extraction as a separate job (recommended for long-running operations), see `docs/example-text-extraction-workflow.yml`:
 
 ```yaml
 jobs:
@@ -87,6 +93,17 @@ jobs:
 - `scrape-artifact-name`: Name of scrape artifact to download (optional, default: "scrape-snapshot-nightly")
 - `force-update`: Force push even if upstream changed (optional, default: "false")
 
+#### Extract Text Action
+
+- `state`: State abbreviation (required)
+- `github-token`: GitHub token (required)
+- `force-update`: Force push even if upstream changed (optional, default: "false")
+
+**Features**:
+- **Incremental Processing**: Automatically skips bills that have already been processed, checking the `text_extraction_latest_update` timestamp in metadata
+- **Auto-Save Failsafe**: Commits and pushes progress every 30 minutes to prevent data loss if the job times out
+- **Resume Capability**: If the job times out (6-hour GitHub limit), restart it and it will continue from where it left off
+
 ## Migration Guide
 
 ### Step 1: Update Caller Repo Workflow
@@ -125,7 +142,11 @@ Replace your current single job with two separate jobs as shown above.
 
 - `actions/scrape/action.yml` - New scrape-only action
 - `actions/format/action.yml` - New format-only action
-- `docs/example-caller-workflow.yml` - Example caller repo workflow
+- `actions/extract/action.yml` - Text extraction action (unchanged)
+- `docs/example-caller-workflow.yml` - Example caller repo workflow (scrape + format)
+- `docs/example-text-extraction-workflow.yml` - Independent text extraction workflow
+- `text_extraction/main.py` - Added incremental processing support
+- `text_extraction/utils/text_extraction.py` - Added incremental processing logic
 - `ACTIONS_SPLIT_README.md` - This documentation
 
 ## Backward Compatibility

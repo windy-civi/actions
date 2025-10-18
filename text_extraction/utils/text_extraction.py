@@ -10,6 +10,7 @@ import random
 from pathlib import Path
 from typing import Dict
 import json
+from datetime import datetime
 
 # Import all common functions from common.py
 from .common import (
@@ -437,6 +438,7 @@ def process_bills_in_batch(
     batch_size: int = 100,
     output_folder: Path = None,
     state: str = "unknown",
+    incremental: bool = False,
 ) -> Dict[str, int]:
     """
     Process bills in batches for text extraction.
@@ -460,8 +462,12 @@ def process_bills_in_batch(
     processed_count = 0
     success_count = 0
     error_count = 0
+    skipped_count = 0
 
     print(f"📊 Found {total_bills} bills to process for text extraction")
+
+    if incremental:
+        print("🔄 Incremental mode enabled - checking for already processed bills")
 
     # Process in batches
     for i in range(0, total_bills, batch_size):
@@ -473,6 +479,12 @@ def process_bills_in_batch(
 
         for metadata_file in batch:
             try:
+                # Check if we should skip this bill in incremental mode
+                if incremental and should_skip_bill_for_text_extraction(metadata_file):
+                    skipped_count += 1
+                    processed_count += 1
+                    continue
+
                 # Get the files directory for this bill
                 files_dir = metadata_file.parent / "files"
                 files_dir.mkdir(parents=True, exist_ok=True)
@@ -484,6 +496,8 @@ def process_bills_in_batch(
 
                 if success:
                     success_count += 1
+                    # Update processing timestamp
+                    update_text_extraction_timestamp(metadata_file)
                 else:
                     error_count += 1
 
@@ -499,7 +513,7 @@ def process_bills_in_batch(
                 processed_count += 1
 
         print(
-            f"✅ Batch {batch_num} complete. Success: {success_count}, Errors: {error_count}"
+            f"✅ Batch {batch_num} complete. Success: {success_count}, Errors: {error_count}, Skipped: {skipped_count}"
         )
 
     # Save error report if output folder is provided
@@ -511,6 +525,7 @@ def process_bills_in_batch(
         "processed": processed_count,
         "successful": success_count,
         "errors": error_count,
+        "skipped": skipped_count,
     }
 
 
@@ -534,3 +549,81 @@ if __name__ == "__main__":
     print(f"Processed: {stats['processed']}")
     print(f"Successful: {stats['successful']}")
     print(f"Errors: {stats['errors']}")
+    if stats.get("skipped", 0) > 0:
+        print(f"Skipped (already processed): {stats['skipped']}")
+
+
+def should_skip_bill_for_text_extraction(metadata_file: Path) -> bool:
+    """
+    Check if a bill should be skipped for text extraction in incremental mode.
+
+    Args:
+        metadata_file: Path to the metadata.json file
+
+    Returns:
+        True if the bill should be skipped, False otherwise
+    """
+    try:
+        with open(metadata_file, "r", encoding="utf-8") as f:
+            metadata = json.load(f)
+
+        # Check if text has already been extracted
+        processing_info = metadata.get("_processing", {})
+        text_extraction_timestamp = processing_info.get("text_extraction_latest_update")
+
+        if not text_extraction_timestamp:
+            # No text extraction timestamp - needs processing
+            return False
+
+        # Check if the bill has been updated since last text extraction
+        logs_timestamp = processing_info.get("logs_latest_update")
+        if logs_timestamp and logs_timestamp > text_extraction_timestamp:
+            # Bill has been updated since last text extraction - needs processing
+            return False
+
+        # Check if any extracted text files exist
+        files_dir = metadata_file.parent / "files"
+        if not files_dir.exists():
+            # No files directory - needs processing
+            return False
+
+        # Check if any _extracted.txt files exist
+        extracted_files = list(files_dir.rglob("*_extracted.txt"))
+        if not extracted_files:
+            # No extracted text files - needs processing
+            return False
+
+        # All checks passed - can skip this bill
+        return True
+
+    except Exception as e:
+        print(f"   ⚠️ Error checking incremental status for {metadata_file}: {e}")
+        # If we can't determine status, process it to be safe
+        return False
+
+
+def update_text_extraction_timestamp(metadata_file: Path) -> None:
+    """
+    Update the text extraction timestamp in the metadata file.
+
+    Args:
+        metadata_file: Path to the metadata.json file
+    """
+    try:
+        with open(metadata_file, "r", encoding="utf-8") as f:
+            metadata = json.load(f)
+
+        # Add or update the text extraction timestamp
+        if "_processing" not in metadata:
+            metadata["_processing"] = {}
+
+        metadata["_processing"]["text_extraction_latest_update"] = (
+            datetime.utcnow().isoformat() + "Z"
+        )
+
+        # Write back to file
+        with open(metadata_file, "w", encoding="utf-8") as f:
+            json.dump(metadata, f, indent=2)
+
+    except Exception as e:
+        print(f"   ⚠️ Error updating text extraction timestamp for {metadata_file}: {e}")
