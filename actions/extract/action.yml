@@ -54,19 +54,19 @@ runs:
         (
           while [ -f /tmp/text_extraction_running ]; do
             sleep 1800  # 30 minutes
-            
+
             if [ -f /tmp/text_extraction_running ]; then
               cd "${{ github.workspace }}"
-              
+
               # Check if there are changes
               if ! git diff --quiet data_output/ || ! git diff --staged --quiet data_output/; then
                 echo "⏰ [$(date)] Auto-committing progress to prevent data loss..."
-                
+
                 git add data_output/
-                
+
                 if ! git diff --staged --quiet; then
                   git commit -m "🔄 Auto-save text extraction progress for ${{ inputs.state }} - $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-                  
+
                   # Push with retries
                   for i in 1 2 3; do
                     if git push origin main 2>/dev/null; then
@@ -82,7 +82,7 @@ runs:
             fi
           done
         ) &
-        
+
         AUTO_COMMIT_PID=$!
         echo "🔄 Auto-commit process started (PID: $AUTO_COMMIT_PID)"
 
