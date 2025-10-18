@@ -115,6 +115,55 @@ def ensure_session_mapping(
     return {}
 
 
+def validate_required_field(
+    data: dict[str, Any],
+    field_name: str,
+    filename: str,
+    error_folder: str | Path,
+    error_category: str,
+    custom_message: str | None = None,
+) -> Any:
+    """
+    Validate that a required field exists in data.
+
+    If the field is missing, logs an error and returns None.
+    If the field exists, returns its value.
+
+    Args:
+        data: Dictionary containing the data
+        field_name: Name of the required field
+        filename: Original filename being processed
+        error_folder: Folder where error files should be saved
+        error_category: Category/subfolder for the error
+        custom_message: Optional custom warning message
+
+    Returns:
+        Field value if present, None if missing
+
+    Example:
+        bill_id = validate_required_field(
+            data, "identifier", filename,
+            DATA_NOT_PROCESSED_FOLDER,
+            "from_handle_bill_missing_identifier"
+        )
+        if not bill_id:
+            return False
+    """
+    value = data.get(field_name)
+    if not value:
+        message = custom_message or f"Missing required field: {field_name}"
+        print(f"⚠️ Warning: {message}")
+        record_error_file(
+            error_folder,
+            error_category,
+            filename,
+            data,
+            original_filename=filename,
+        )
+        return None
+    return value
+
+
 def record_error_file(
     error_folder: str | Path,
     category: str,

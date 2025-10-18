@@ -6,6 +6,10 @@ from utils.timestamp_tracker import (
     is_newer_than_latest,
     LatestTimestamps,
 )
+from utils.processing_tracker import (
+    load_existing_metadata,
+    compare_action_counts,
+)
 
 
 def load_json_files(
@@ -13,6 +17,8 @@ def load_json_files(
     EVENT_ARCHIVE_FOLDER: str | Path,
     DATA_NOT_PROCESSED_FOLDER: str | Path,
     latest_timestamps: LatestTimestamps,
+    state_abbr: str,
+    data_processed_folder: Path,
 ):
     bills_ts = latest_timestamps["bills"]
     vote_events_ts = latest_timestamps["vote_events"]
@@ -30,10 +36,20 @@ def load_json_files(
 
                 # Determine type for timestamp comparison
                 if filename.startswith("bill"):
-                    if not is_newer_than_latest(
-                        data, bills_ts, "bills", DATA_NOT_PROCESSED_FOLDER
-                    ):
+                    # Use smart filtering: compare action counts
+                    existing_metadata = load_existing_metadata(
+                        data_processed_folder, state_abbr, data
+                    )
+                    should_process, existing_count, incoming_count = (
+                        compare_action_counts(existing_metadata, data)
+                    )
+
+                    if not should_process:
+                        # Same action count - likely no changes, skip
                         continue
+
+                    # Different count or new bill - pass to processing
+                    # (Will be handled in handle_bill with granular action comparison)
                 elif filename.startswith("vote_event"):
                     if not is_newer_than_latest(
                         data, vote_events_ts, "vote_events", DATA_NOT_PROCESSED_FOLDER
