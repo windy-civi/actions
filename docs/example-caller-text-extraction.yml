@@ -30,7 +30,7 @@ jobs:
       - name: Run text extraction action
         uses: windy-civi/opencivicdata-blockchain-transformer/actions/extract@main
         with:
-          state: ${{ inputs.state || 'UPDATE_STATE_HERE' }} # Change UPDATE_STATE_HERE to your state code (e.g., wy, usa, il)
+          state: ${{ inputs.state || 'UPDATE_STATE_HERE' }} # ⚠️ UPDATE THIS: Change 'UPDATE_STATE_HERE' to your state code (e.g., 'wy', 'usa', 'il', 'tx')
           github-token: ${{ secrets.GITHUB_TOKEN }}
           force-update: "false"
 
