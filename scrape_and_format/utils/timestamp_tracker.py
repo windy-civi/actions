@@ -7,7 +7,6 @@ from .file_utils import format_timestamp, record_error_file
 
 class LatestTimestamps(TypedDict):
     """Type definition for the latest timestamps dictionary."""
-    bills: datetime
     vote_events: datetime
     events: datetime
 
@@ -19,7 +18,6 @@ def get_latest_timestamp_path(output_folder: Path) -> Path:
 def get_default_timestamps() -> LatestTimestamps:
     """Get default timestamps dictionary."""
     return {
-        "bills": datetime(1900, 1, 1),
         "vote_events": datetime(1900, 1, 1),
         "events": datetime(1900, 1, 1),
     }
@@ -67,20 +65,12 @@ def update_latest_timestamp(
     return existing_dt
 
 def extract_timestamp(data: dict[str, Any], category: str) -> str | None:
+    """
+    Extract timestamp from data for events and vote_events.
+    Note: Bills no longer use this - they use incremental processing with _processing metadata.
+    """
     try:
-        if category == "bills":
-            actions = data.get("actions", [])
-            if not actions:
-                return "NO_ACTIONS_FOUND"
-            dates = [a.get("date") for a in actions if a.get("date")]
-            if not dates:
-                return "NO_DATES_IN_ACTIONS"
-            try:
-                return format_timestamp(min(dates))
-            except Exception:
-                return "INVALID_BILL_DATE"
-
-        elif category == "events":
+        if category == "events":
             date = data.get("start_date")
             if date:
                 return format_timestamp(date)
@@ -106,9 +96,6 @@ def is_newer_than_latest(
     raw_ts = extract_timestamp(data, category)
 
     if isinstance(raw_ts, str) and raw_ts in {
-        "NO_ACTIONS_FOUND",
-        "NO_DATES_IN_ACTIONS",
-        "INVALID_BILL_DATE",
         "MISSING_EVENT_DATE",
         "MISSING_VOTE_DATE",
         "UNKNOWN_CATEGORY",
