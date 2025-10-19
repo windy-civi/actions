@@ -114,7 +114,7 @@ runs:
           }
 
           git commit -m "Automated OpenStates data update for ${{ inputs.state }}"
-          
+
           # Retry push up to 3 times in case of concurrent updates
           for i in 1 2 3; do
             if [ "${{ inputs.force-update }}" = "true" ]; then
@@ -128,7 +128,7 @@ runs:
                 break
               fi
             fi
-            
+
             if [ $i -lt 3 ]; then
               echo "⚠️ Push failed (attempt $i), pulling and retrying..."
               git pull --rebase origin main
