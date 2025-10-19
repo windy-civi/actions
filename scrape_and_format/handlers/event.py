@@ -8,7 +8,6 @@ from utils.timestamp_tracker import (
     to_dt_obj,
     LatestTimestamps,
 )
-from utils.path_utils import build_data_path
 
 
 def clean_event_name(name: str) -> str:
@@ -67,13 +66,14 @@ def handle_event(
 
     event_name = data.get("name", "event")
     short_name = clean_event_name(event_name)
-    
+
     # Use provided session_id if available (from event linking), otherwise get from data
     if session_id is None:
         session_id = data.get("legislative_session", "unknown-session")
 
     # Build path to events folder
-    # Events are saved as individual files directly in the events/ folder
+    # Events are saved as individual files directly in the events/ folder (not subdirectories)
+    # Note: We don't use build_data_path here because events don't have individual folders
     is_usa = STATE_ABBR.lower() == "usa"
     
     if is_usa:
