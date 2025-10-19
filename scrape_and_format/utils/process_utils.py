@@ -4,20 +4,7 @@ from pathlib import Path
 from collections.abc import Callable
 from handlers import bill, vote_event, event
 from utils.file_utils import record_error_file
-from utils.interactive import prompt_for_session_fix
 from utils.timestamp_tracker import write_latest_timestamp_file, LatestTimestamps
-
-
-def count_successful_saves(
-    files: list[Path], handler_function: Callable[[Path], bool]
-) -> int:
-
-    count = 0
-    for file_path in files:
-        success = handler_function(file_path)
-        if success:
-            count += 1
-    return count
 
 
 def route_handler(
@@ -93,15 +80,8 @@ def process_and_save(
 
         session_metadata = SESSION_MAPPING.get(session)
 
-        # Prompt user to fix if session is unknown: by default is toggled off
-        if not session_metadata:
-            new_session = prompt_for_session_fix(
-                filename, session, log_path=SESSION_LOG_PATH
-            )
-            if new_session:
-                SESSION_MAPPING[session] = new_session
-                session_metadata = new_session
-
+        # If session is unknown, skip and record error
+        # Sessions are now fetched automatically via API in ensure_session_mapping()
         if not session_metadata:
             record_error_file(
                 DATA_NOT_PROCESSED_FOLDER, "unknown_session", filename, data
