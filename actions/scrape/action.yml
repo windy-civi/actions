@@ -113,6 +113,7 @@ runs:
         name: scrape-snapshot-nightly
         path: ${{ github.workspace }}/scrape-snapshot-nightly.tgz
         retention-days: 30
+        overwrite: true
 
     - name: Update nightly release (rolling)
       if: inputs.use-scrape-cache != 'true' && env.SCRAPE_TARBALL == 'present'
