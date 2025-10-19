@@ -103,10 +103,39 @@ runs:
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
+          # Pull latest changes before committing to avoid conflicts with concurrent jobs
+          echo "📥 Pulling latest changes..."
+          git pull --rebase origin main || {
+            echo "⚠️ Rebase conflict detected, attempting to resolve..."
+            # Our changes are in data_output/, so accept ours for that directory
+            git checkout --ours data_output/
+            git add data_output/
+            git rebase --continue || true
+          }
+
           git commit -m "Automated OpenStates data update for ${{ inputs.state }}"
-          if [ "${{ inputs.force-update }}" = "true" ]; then
-            git push --force-with-lease origin main
-          else
-            git push origin main
-          fi
+          
+          # Retry push up to 3 times in case of concurrent updates
+          for i in 1 2 3; do
+            if [ "${{ inputs.force-update }}" = "true" ]; then
+              if git push --force-with-lease origin main; then
+                echo "✅ Changes pushed successfully (attempt $i)"
+                break
+              fi
+            else
+              if git push origin main; then
+                echo "✅ Changes pushed successfully (attempt $i)"
+                break
+              fi
+            fi
+            
+            if [ $i -lt 3 ]; then
+              echo "⚠️ Push failed (attempt $i), pulling and retrying..."
+              git pull --rebase origin main
+              sleep 2
+            else
+              echo "❌ Failed to push after 3 attempts"
+              exit 1
+            fi
+          done
         fi
