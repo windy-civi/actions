@@ -22,6 +22,8 @@ def handle_event(
     DATA_NOT_PROCESSED_FOLDER: Path,
     filename: str,
     latest_timestamps: LatestTimestamps,
+    session_id: str = None,
+    referenced_bill_id: str = None,
 ) -> bool:
     """
     Saves event JSON to the correct session folder under events,
@@ -40,16 +42,19 @@ def handle_event(
     if not start_date:
         return False
 
-    referenced_bill_id = validate_required_field(
-        data,
-        "bill_identifier",
-        filename,
-        DATA_NOT_PROCESSED_FOLDER,
-        "from_handle_event_missing_bill_identifier",
-        "Event missing bill_identifier",
-    )
-    if not referenced_bill_id:
-        return False
+    # Use provided referenced_bill_id if available (from event linking)
+    # Otherwise, validate that bill_identifier exists in the data
+    if referenced_bill_id is None:
+        referenced_bill_id = validate_required_field(
+            data,
+            "bill_identifier",
+            filename,
+            DATA_NOT_PROCESSED_FOLDER,
+            "from_handle_event_missing_bill_identifier",
+            "Event missing bill_identifier",
+        )
+        if not referenced_bill_id:
+            return False
 
     timestamp = format_timestamp(start_date)
     if timestamp == "unknown":
@@ -62,16 +67,37 @@ def handle_event(
 
     event_name = data.get("name", "event")
     short_name = clean_event_name(event_name)
-    session_id = data.get("legislative_session", "unknown-session")
+    
+    # Use provided session_id if available (from event linking), otherwise get from data
+    if session_id is None:
+        session_id = data.get("legislative_session", "unknown-session")
 
-    # Use centralized path builder for events folder (not individual event)
-    base_path = build_data_path(
-        DATA_PROCESSED_FOLDER, STATE_ABBR, "events", session_id, ""
-    ).parent  # Go up one level since build_data_path adds identifier
+    # Build path to events folder
+    # Events are saved as individual files directly in the events/ folder
+    is_usa = STATE_ABBR.lower() == "usa"
+    
+    if is_usa:
+        events_folder = (
+            DATA_PROCESSED_FOLDER
+            / "country:us"
+            / "congress"
+            / "sessions"
+            / session_id
+            / "events"
+        )
+    else:
+        events_folder = (
+            DATA_PROCESSED_FOLDER
+            / "country:us"
+            / f"state:{STATE_ABBR.lower()}"
+            / "sessions"
+            / session_id
+            / "events"
+        )
+    
+    events_folder.mkdir(parents=True, exist_ok=True)
 
-    base_path.mkdir(parents=True, exist_ok=True)
-
-    output_file = base_path / f"{timestamp}_{short_name}.json"
+    output_file = events_folder / f"{timestamp}_{short_name}.json"
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 

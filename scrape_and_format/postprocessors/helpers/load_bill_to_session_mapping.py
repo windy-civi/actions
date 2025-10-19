@@ -41,18 +41,18 @@ def load_bill_to_session_mapping(
         bill_id = bill_path.name
 
         try:
-            session_name = bill_path.parent.parent.name
+            session_id = bill_path.parent.parent.name
         except IndexError:
             continue
 
-        # Match session metadata
-        for meta in session_mapping.values():
-            if meta["name"] == session_name:
-                bill_to_session[bill_id] = {
-                    "name": session_name,
-                    "date_folder": meta["date_folder"],
-                }
-                break
+        # Match session metadata by session ID (folder name)
+        if session_id in session_mapping:
+            meta = session_mapping[session_id]
+            bill_to_session[bill_id] = {
+                "session_id": session_id,  # Add session ID for folder creation
+                "name": meta["name"],
+                "date_folder": meta["date_folder"],
+            }
 
     with open(mapping_file, "w", encoding="utf-8") as f:
         json.dump(bill_to_session, f, indent=2)

@@ -47,7 +47,7 @@ def link_events_to_bills_pipeline(
                 run_handle_event(
                     STATE_ABBR,
                     data,
-                    session_meta["name"],
+                    session_meta["session_id"],  # Pass session ID (e.g., "119") not name
                     session_meta["date_folder"],
                     DATA_PROCESSED_FOLDER,
                     DATA_NOT_PROCESSED_FOLDER,
@@ -81,11 +81,11 @@ def link_events_to_bills_pipeline(
                     run_handle_event(
                         STATE_ABBR,
                         data,
-                        session_meta["name"],
+                        session_meta["session_id"],  # Pass session ID (e.g., "119") not name
                         session_meta["date_folder"],
                         DATA_PROCESSED_FOLDER,
                         DATA_NOT_PROCESSED_FOLDER,
-                        referenced_bill_id=bill_id,
+                        bill_id,
                         filename=event_file.name,
                     )
                     event_file.unlink()

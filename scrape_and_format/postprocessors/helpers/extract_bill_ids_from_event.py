@@ -15,7 +15,8 @@ def extract_bill_ids_from_event(event_json: dict) -> list[str]:
             if entity.get("entity_type") == "bill":
                 raw = entity.get("name")
                 if raw:
-                    clean = raw.strip()
+                    # Remove spaces to match bill folder names (e.g., "HR 1663" → "HR1663")
+                    clean = raw.strip().replace(" ", "")
                     bill_ids.append(clean)
 
     return bill_ids

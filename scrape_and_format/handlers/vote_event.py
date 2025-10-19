@@ -55,7 +55,7 @@ def handle_vote_event(
     # Add placeholder if bill doesn't exist
     placeholder_file = save_path / "placeholder.json"
     if not placeholder_file.exists():
-        placeholder_data = {"identifier": bill_id, "placeholder": True}
+        placeholder_data = {"identifier": referenced_bill_id, "placeholder": True}
         with open(placeholder_file, "w", encoding="utf-8") as f:
             json.dump(placeholder_data, f, indent=2)
 
@@ -63,7 +63,9 @@ def handle_vote_event(
     date = data.get("start_date")
     timestamp = format_timestamp(date)
     if timestamp == "unknown":
-        print(f"⚠️ Vote Event {bill_id} has unrecognized timestamp format: {date}")
+        print(
+            f"⚠️ Vote Event {referenced_bill_id} has unrecognized timestamp format: {date}"
+        )
     else:
         current_dt = to_dt_obj(timestamp)
         latest_timestamps["vote_events"] = update_latest_timestamp(
