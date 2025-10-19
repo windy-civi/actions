@@ -20,7 +20,6 @@ def load_json_files(
     state_abbr: str,
     data_processed_folder: Path,
 ):
-    bills_ts = latest_timestamps["bills"]
     vote_events_ts = latest_timestamps["vote_events"]
     events_ts = latest_timestamps["events"]
 

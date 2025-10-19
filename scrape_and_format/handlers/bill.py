@@ -2,13 +2,10 @@ from pathlib import Path
 import json
 from typing import Any
 from utils.file_utils import (
-    format_timestamp,
     validate_required_field,
     write_action_logs,
 )
 from utils.timestamp_tracker import (
-    update_latest_timestamp,
-    to_dt_obj,
     LatestTimestamps,
 )
 from utils.processing_tracker import (
@@ -67,20 +64,6 @@ def handle_bill(
     existing_metadata = load_existing_metadata(DATA_PROCESSED_FOLDER, STATE_ABBR, data)
 
     actions = data.get("actions", [])
-    if actions:
-        dates = [a.get("date") for a in actions if a.get("date")]
-        timestamp = format_timestamp(sorted(dates)[0]) if dates else None
-        if timestamp and timestamp != "unknown":
-            current_dt = to_dt_obj(timestamp)
-            latest_timestamps["bills"] = update_latest_timestamp(
-                "bills", current_dt, latest_timestamps["bills"], latest_timestamps
-            )
-    else:
-        timestamp = None
-
-    if not timestamp:
-        print(f"⚠️ Warning: Bill {bill_identifier} missing action dates")
-        timestamp = "unknown"
 
     # Determine which actions are new and need processing
     if existing_metadata:
