@@ -33,53 +33,63 @@ Most unexpectedly, this process dramatically improved my debugging skills. By br
 
 ## 🚀 Composite Actions
 
-### Action 1: Scrape & Format Data
+This pipeline uses **modular GitHub Actions** that can be run independently or chained together.
 
-Scrapes legislative data from **OpenStates** and formats it into blockchain-style directories.
+### Action 1: Scrape Data
+
+Scrapes legislative data from **OpenStates** using Docker.
 
 **Features:**
 
 - Docker-based scraping using OpenStates scrapers
-- Nightly artifact creation (rolling + immutable archives)
-- Automatic organization by session, bill, and version
+- Artifact creation for passing data between jobs
+- Nightly releases (rolling + immutable archives)
 
-```yaml
-- uses: windy-civi/opencivicdata-blockchain-transformer/actions/scrape@main
-  with:
-    state: tn
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-```
+### Action 2: Format Data
 
-### Action 2: Extract Text
+Formats scraped data into blockchain-style directories.
+
+**Features:**
+
+- Incremental processing (only processes new/updated bills)
+- Automatic session detection via API
+- Concurrent job support (git pull before commit)
+
+### Action 3: Extract Text
 
 Extracts readable bill text from XML, HTML, or PDF versions.
 
 **Features:**
 
+- Incremental processing (skips already-extracted bills)
+- Auto-save every 30 minutes (prevents timeout data loss)
 - Multi-format extraction (XML > HTML > PDF)
-- PDF strikethrough detection for amendments
-- Error-tracked, resumable runs
+- Resumable after GitHub's 6-hour timeout
 
-```yaml
-- uses: windy-civi/opencivicdata-blockchain-transformer/actions/extract@main
-  with:
-    state: tn
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-```
+**Example Usage:**
+
+See [example workflows](docs/) for complete setup:
+
+- `example-caller-workflow.yml` - Scrape + Format pipeline
+- `example-caller-text-extraction.yml` - Text extraction (independent)
 
 ## 📊 Output Example
 
 ```
 data_output/data_processed/
 └── country:us/
-    └── state:tn/
-        └── sessions/113/bills/HB1234/
-            ├── metadata.json
-            ├── logs/
-            └── files/
+    └── congress/                    # or state:tn/ for state data
+        └── sessions/119/
+            ├── bills/
+            │   └── HR1234/
+            │       ├── metadata.json           # Bill data + _processing timestamps
+            │       ├── logs/                   # Action logs + vote events
+            │       └── files/                  # Bill text (XML, PDF, extracted)
+            └── events/                         # Hearing/committee events
+                └── 20250325_hearing.json
 ```
 
-Each bill includes structured metadata, versioned text files, and extraction logs—creating a traceable digital record of legislative change.
+Each bill includes structured metadata with incremental processing timestamps, versioned text files, and action logs—creating a traceable digital record of legislative change.
 
 ## ⚙️ Setup
 
