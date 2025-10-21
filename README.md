@@ -70,7 +70,7 @@ Extracts readable bill text from XML, HTML, or PDF versions.
 
 See [example workflows](docs/) for complete setup:
 
-- `example-caller-workflow.yml` - Scrape + Format pipeline
+- `example-caller-scrape-format.yml` - Scrape + Format pipeline
 - `example-caller-text-extraction.yml` - Text extraction (independent)
 
 ## 📊 Output Example

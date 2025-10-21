@@ -33,7 +33,7 @@ The monolithic `actions/scrape/action.yml` has been split into two separate acti
 
 #### Basic Pipeline (Scrape + Format)
 
-Update your workflow to use two separate jobs. See `docs/example-caller-workflow.yml` for a complete example:
+Update your workflow to use two separate jobs. See `docs/example-caller-scrape-format.yml` for a complete example:
 
 #### Independent Text Extraction
 
@@ -146,9 +146,8 @@ Replace your current single job with two separate jobs as shown above.
 - `actions/scrape/action.yml` - New scrape-only action
 - `actions/format/action.yml` - New format-only action
 - `actions/extract/action.yml` - Text extraction action with incremental processing and auto-save
-- `docs/example-caller-workflow.yml` - Example caller repo workflow (scrape + format)
-- `docs/example-caller-text-extraction.yml` - Simple example for caller repos (recommended)
-- `docs/example-text-extraction-workflow.yml` - Advanced text extraction workflow example
+- `docs/example-caller-scrape-format.yml` - Example caller repo workflow (scrape + format)
+- `docs/example-caller-text-extraction.yml` - Example for text extraction (recommended)
 - `text_extraction/main.py` - Added incremental processing support
 - `text_extraction/utils/text_extraction.py` - Added incremental processing logic
 - `ACTIONS_SPLIT_README.md` - This documentation

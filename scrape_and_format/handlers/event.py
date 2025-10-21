@@ -75,7 +75,7 @@ def handle_event(
     # Events are saved as individual files directly in the events/ folder (not subdirectories)
     # Note: We don't use build_data_path here because events don't have individual folders
     is_usa = STATE_ABBR.lower() == "usa"
-    
+
     if is_usa:
         events_folder = (
             DATA_PROCESSED_FOLDER
@@ -94,7 +94,7 @@ def handle_event(
             / session_id
             / "events"
         )
-    
+
     events_folder.mkdir(parents=True, exist_ok=True)
 
     output_file = events_folder / f"{timestamp}_{short_name}.json"

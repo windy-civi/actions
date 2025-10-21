@@ -7,6 +7,7 @@ from .file_utils import format_timestamp, record_error_file
 
 class LatestTimestamps(TypedDict):
     """Type definition for the latest timestamps dictionary."""
+
     vote_events: datetime
     events: datetime
 
@@ -15,12 +16,14 @@ def get_latest_timestamp_path(output_folder: Path) -> Path:
     """Get the path to the latest timestamp file based on the output folder."""
     return output_folder / "data_output" / "latest_timestamp_seen.txt"
 
+
 def get_default_timestamps() -> LatestTimestamps:
     """Get default timestamps dictionary."""
     return {
         "vote_events": datetime(1900, 1, 1),
         "events": datetime(1900, 1, 1),
     }
+
 
 def read_latest_timestamps(output_folder: Path) -> LatestTimestamps:
     """Read latest timestamps from file, returning defaults if file doesn't exist."""
@@ -34,6 +37,7 @@ def read_latest_timestamps(output_folder: Path) -> LatestTimestamps:
         print("⚠️ No timestamp file found or invalid JSON. Using defaults.")
         return get_default_timestamps()
 
+
 def to_dt_obj(ts_str: str | datetime) -> Optional[datetime]:
     if isinstance(ts_str, datetime):
         return ts_str
@@ -46,6 +50,7 @@ def to_dt_obj(ts_str: str | datetime) -> Optional[datetime]:
     except Exception as e:
         print(f"❌ Failed to parse timestamp: {ts_str} ({e})")
         return None
+
 
 def update_latest_timestamp(
     category: str,
@@ -63,6 +68,7 @@ def update_latest_timestamp(
         return current_dt
 
     return existing_dt
+
 
 def extract_timestamp(data: dict[str, Any], category: str) -> str | None:
     """
@@ -86,6 +92,7 @@ def extract_timestamp(data: dict[str, Any], category: str) -> str | None:
 
     except Exception as e:
         return f"ERROR_{category.upper()}_{str(e)}"
+
 
 def is_newer_than_latest(
     data: dict[str, Any],
@@ -123,7 +130,10 @@ def is_newer_than_latest(
         )
         return False
 
-def write_latest_timestamp_file(output_folder: Path, latest_timestamps: LatestTimestamps):
+
+def write_latest_timestamp_file(
+    output_folder: Path, latest_timestamps: LatestTimestamps
+):
     try:
         output = {}
         for k, dt in latest_timestamps.items():
