@@ -1,5 +1,0 @@
-2025-10-16T18:28:11.6330000Z Requested labels: ubuntu-latest
-2025-10-16T18:28:11.6330000Z Job defined at: wanderlust-create/USA-pipeline-sample/.github/workflows/scrape-and-format-data.yml@refs/heads/main
-2025-10-16T18:28:11.6330000Z Waiting for a runner to pick up this job...
-2025-10-16T18:28:12.0770000Z Job is about to start running on the hosted runner: GitHub Actions 1000001310
-2025-10-16T18:28:12.0760000Z Job is waiting for a hosted runner to come online.

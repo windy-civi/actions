@@ -18,7 +18,7 @@ from typing import Dict, List
 def load_orphan_tracking(data_processed_folder: Path) -> Dict:
     """
     Load existing orphan tracking data.
-    
+
     Returns a dict mapping bill_id to tracking info:
     {
       "HR999": {
@@ -32,18 +32,18 @@ def load_orphan_tracking(data_processed_folder: Path) -> Dict:
     }
     """
     tracking_file = data_processed_folder / "orphaned_placeholders_tracking.json"
-    
+
     if tracking_file.exists():
         with open(tracking_file, "r", encoding="utf-8") as f:
             return json.load(f)
-    
+
     return {}
 
 
 def save_orphan_tracking(data_processed_folder: Path, tracking_data: Dict) -> None:
     """Save orphan tracking data to persistent file."""
     tracking_file = data_processed_folder / "orphaned_placeholders_tracking.json"
-    
+
     with open(tracking_file, "w", encoding="utf-8") as f:
         json.dump(tracking_data, f, indent=2, sort_keys=True)
 
@@ -73,10 +73,10 @@ def cleanup_placeholders(data_processed_folder: Path) -> Dict[str, int]:
     print("\n🧹 Cleaning up placeholder files...")
 
     current_timestamp = datetime.now().isoformat()
-    
+
     # Load existing tracking
     orphan_tracking = load_orphan_tracking(data_processed_folder)
-    
+
     placeholders_found = 0
     placeholders_deleted = 0
     orphans_current_run = set()  # Bill IDs found as orphans this run
@@ -100,16 +100,18 @@ def cleanup_placeholders(data_processed_folder: Path) -> Dict[str, int]:
             placeholder_file.unlink()
             placeholders_deleted += 1
             print(f"   ✓ Deleted placeholder for {bill_id} (bill exists)")
-            
+
             # If this bill was tracked as orphan, it's now resolved!
             if bill_id in orphan_tracking:
                 resolved_orphans += 1
-                print(f"   🎉 Resolved orphan: {bill_id} (was orphaned for {orphan_tracking[bill_id]['occurrence_count']} runs)")
+                print(
+                    f"   🎉 Resolved orphan: {bill_id} (was orphaned for {orphan_tracking[bill_id]['occurrence_count']} runs)"
+                )
                 del orphan_tracking[bill_id]
         else:
             # Orphan! Bill never came through, but we have votes/events for it
             orphans_current_run.add(bill_id)
-            
+
             # Check what data we do have
             logs_folder = bill_folder / "logs"
             has_logs = logs_folder.exists()
@@ -123,7 +125,7 @@ def cleanup_placeholders(data_processed_folder: Path) -> Dict[str, int]:
                         vote_count += 1
                     elif "event" in log_file.name:
                         event_count += 1
-            
+
             # Update tracking
             if bill_id in orphan_tracking:
                 # Existing orphan - update last_seen and increment count
@@ -158,17 +160,18 @@ def cleanup_placeholders(data_processed_folder: Path) -> Dict[str, int]:
         save_orphan_tracking(data_processed_folder, orphan_tracking)
         print(f"\n📋 Orphan tracking updated: orphaned_placeholders_tracking.json")
         print(f"   Total orphans being tracked: {len(orphan_tracking)}")
-        
+
         # Show chronic orphans (seen 3+ times)
         chronic_orphans = {
-            bid: data for bid, data in orphan_tracking.items() 
+            bid: data
+            for bid, data in orphan_tracking.items()
             if data["occurrence_count"] >= 3
         }
         if chronic_orphans:
             print(f"   ⚠️  Chronic orphans (3+ occurrences): {len(chronic_orphans)}")
             for bill_id, data in list(chronic_orphans.items())[:5]:  # Show first 5
                 print(f"      - {bill_id}: {data['occurrence_count']} times")
-        
+
         print(f"\n   Review for:")
         print(f"   - Typos in vote/event bill identifiers")
         print(f"   - Bills that exist but weren't scraped")

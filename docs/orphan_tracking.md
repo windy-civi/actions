@@ -44,6 +44,7 @@ Orphans are tracked in `data_output/data_processed/orphaned_placeholders_trackin
 ### Chronic Orphans
 
 Bills that appear as orphans **3+ times** are flagged as "chronic orphans" in the output. These likely indicate:
+
 - **Typos** in vote/event bill identifiers (e.g., "HR 999" vs "HR999")
 - **Missing bills** that weren't scraped but had related activity
 - **Data quality issues** from the source API
@@ -77,6 +78,7 @@ Bills that appear as orphans **3+ times** are flagged as "chronic orphans" in th
 ### Review the Tracking File
 
 Check `data_output/data_processed/orphaned_placeholders_tracking.json` for:
+
 1. **High occurrence counts** → Chronic problems
 2. **Recent first_seen dates** → May resolve naturally on next scrape
 3. **Bill ID patterns** → Potential identifier format mismatches
@@ -84,6 +86,7 @@ Check `data_output/data_processed/orphaned_placeholders_tracking.json` for:
 ### Check the Bill Folders
 
 Orphaned bills still have folders with votes/events:
+
 ```
 data_output/data_processed/country:us/congress/sessions/119/bills/HR999/
 ├── placeholder.json         # Placeholder (no real bill data)
@@ -95,10 +98,12 @@ data_output/data_processed/country:us/congress/sessions/119/bills/HR999/
 ### Common Issues
 
 1. **Case sensitivity**: Bill IDs from events might not match folder names
+
    - Vote says "HR 999" but folder is "HR999"
    - Solution: Normalize identifiers in vote/event handlers
 
 2. **Missing bills**: Some bills referenced but never scraped
+
    - Check source API for these specific bills
    - Verify scraper is capturing all bill types
 
@@ -108,11 +113,13 @@ data_output/data_processed/country:us/congress/sessions/119/bills/HR999/
 ## Testing
 
 Run the test suite:
+
 ```bash
 python testing/scripts/test_placeholder_cleanup.py
 ```
 
 This simulates:
+
 - First run (new orphans)
 - Second run (incrementing counts)
 - Third run (resolving an orphan)
@@ -127,4 +134,3 @@ cleanup_stats = cleanup_placeholders(DATA_PROCESSED_FOLDER)
 ```
 
 No configuration needed - it just works! ✨
-
