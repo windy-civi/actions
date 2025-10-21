@@ -16,6 +16,9 @@ on:
         description: "Force push even if upstream changed (use with caution)"
         default: false
 
+env:
+  STATE_CODE: UPDATE_STATE_HERE # ⚠️ UPDATE THIS: Change to your state code (e.g., wy, usa, il, tx)
+
 jobs:
   scrape:
     name: "🕷️ Scrape Data"
@@ -37,7 +40,7 @@ jobs:
         id: scrape
         uses: windy-civi/opencivicdata-blockchain-transformer/actions/scrape@main
         with:
-          state: usa # ⚠️ UPDATE THIS: Change to your state code (e.g., 'wy', 'usa', 'il', 'tx')
+          state: ${{ env.STATE_CODE }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           use-scrape-cache: ${{ inputs.use-scrape-cache }}
 
@@ -65,7 +68,7 @@ jobs:
       - name: Run formatter action
         uses: windy-civi/opencivicdata-blockchain-transformer/actions/format@main
         with:
-          state: wy # ⚠️ UPDATE THIS: Change to your state code (e.g., 'wy', 'usa', 'il', 'tx')
+          state: ${{ env.STATE_CODE }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           scrape-artifact-name: ${{ needs.scrape.outputs.scrape-artifact-name }}
           force-update: ${{ inputs.force-update }}
