@@ -11,6 +11,7 @@ from utils.io_utils import load_json_files
 from utils.file_utils import ensure_session_mapping
 from utils.process_utils import process_and_save
 from postprocessors.event_bill_linker import link_events_to_bills_pipeline
+from postprocessors.cleanup_placeholders import cleanup_placeholders
 from utils.file_utils import verify_folder_exists
 
 SESSION_MAPPING = {}
@@ -108,9 +109,16 @@ def main(
         print(
             f"⚠️ Event archive folder {EVENT_ARCHIVE_FOLDER} does not exist. Skipping event linking.\n🚀 Processing complete."
         )
-    print("Processing summary:")
+
+    # 6. Cleanup placeholder files (post-processing)
+    cleanup_stats = cleanup_placeholders(DATA_PROCESSED_FOLDER)
+
+    print("\n📊 Processing summary:")
     print(f"Bills saved: {counts.get('bills', 0)}")
     print(f"Vote events saved: {counts.get('votes', 0)}")
+    print(f"Placeholders cleaned: {cleanup_stats['placeholders_deleted']}")
+    if cleanup_stats["orphans_found"] > 0:
+        print(f"⚠️  Orphaned bills found: {cleanup_stats['orphans_found']} (see report)")
 
 
 if __name__ == "__main__":
