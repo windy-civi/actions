@@ -44,9 +44,6 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           use-scrape-cache: ${{ inputs.use-scrape-cache }}
 
-      # Note: The scrape action automatically uploads the artifact internally,
-      # so we don't need to upload it again here
-
   format:
     name: "📝 Format Data"
     runs-on: ubuntu-latest
