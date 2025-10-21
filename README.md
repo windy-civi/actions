@@ -64,11 +64,13 @@ This pipeline uses **three modular actions** that work together but run independ
 These two actions run as **separate jobs in the same workflow**, passing data via artifacts:
 
 #### **Action 1: Scrape** → Scrapes legislative data
+
 - Docker-based scraping using OpenStates scrapers
 - Creates artifact for next job
 - Nightly releases (rolling + immutable archives)
 
 #### **Action 2: Format** → Organizes into blockchain structure
+
 - Downloads scrape artifact
 - Incremental processing (only new/updated bills)
 - Automatic session detection via API
@@ -83,6 +85,7 @@ These two actions run as **separate jobs in the same workflow**, passing data vi
 This runs as a **completely separate workflow**, usually a few hours after scrape+format:
 
 #### **Action 3: Extract Text** → Extracts readable bill text
+
 - Incremental processing (skips already-extracted bills)
 - Auto-save every 30 minutes (prevents timeout data loss)
 - Multi-format extraction (XML > HTML > PDF)
@@ -91,14 +94,15 @@ This runs as a **completely separate workflow**, usually a few hours after scrap
 
 💡 **Why separate?** Text extraction can take 4-6 hours for large datasets. Running independently allows it to restart and prevents blocking the scrape/format workflow.
 
-## 📖 Example Workflows
+## 📖 For Caller Repositories
 
-Get started with these example workflows for your caller repository:
+Setting up a state pipeline? Everything you need is in the **[docs/for-caller-repos/](docs/for-caller-repos/)** folder:
 
-- **[example-caller-scrape-format.yml](docs/example-caller-scrape-format.yml)** - Complete scrape + format pipeline
-- **[example-caller-text-extraction.yml](docs/example-caller-text-extraction.yml)** - Text extraction (run separately)
+- **[README_TEMPLATE.md](docs/for-caller-repos/README_TEMPLATE.md)** - Complete setup guide for state pipelines
+- **[example-caller-scrape-format.yml](docs/for-caller-repos/example-caller-scrape-format.yml)** - Scrape + format workflow
+- **[example-caller-text-extraction.yml](docs/for-caller-repos/example-caller-text-extraction.yml)** - Text extraction workflow
 
-See the [docs/](docs/) folder for detailed guides and additional examples.
+See the [docs/](docs/) folder for additional technical guides.
 
 ## 📊 Output Structure
 
@@ -157,6 +161,7 @@ The pipeline automatically tracks **orphaned bills** - bills that have vote even
 - Timing issues (bill not scraped yet)
 
 Check `data_output/data_processed/orphaned_placeholders_tracking.json` to see:
+
 - Which bills are orphaned
 - How long they've been orphaned (`first_seen`, `last_seen`)
 - How many times they've appeared (`occurrence_count`)
@@ -232,4 +237,4 @@ MIT License - feel free to use, modify, and build upon this work.
 
 ---
 
-*Part of the [Windy Civi](https://github.com/windy-civi) ecosystem - Making civic data transparent and accessible.*
+_Part of the [Windy Civi](https://github.com/windy-civi) ecosystem - Making civic data transparent and accessible._
