@@ -47,6 +47,13 @@ runs:
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
 
+        # Pull latest changes to ensure we have the most recent metadata with timestamps
+        # This prevents race conditions where a previous run just committed updates
+        echo "📥 Pulling latest changes to get updated metadata..."
+        git pull origin main || {
+          echo "⚠️ Pull failed, continuing with current checkout"
+        }
+
         # Create a flag file to control the auto-commit loop
         touch /tmp/text_extraction_running
 
