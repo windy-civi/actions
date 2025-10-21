@@ -567,33 +567,40 @@ def should_skip_bill_for_text_extraction(metadata_file: Path) -> bool:
         with open(metadata_file, "r", encoding="utf-8") as f:
             metadata = json.load(f)
 
+        bill_id = metadata.get("identifier", metadata_file.parent.name)
+
         # Check if text has already been extracted
         processing_info = metadata.get("_processing", {})
         text_extraction_timestamp = processing_info.get("text_extraction_latest_update")
 
         if not text_extraction_timestamp:
             # No text extraction timestamp - needs processing
+            print(f"   🔍 {bill_id}: No extraction timestamp - processing")
             return False
 
         # Check if the bill has been updated since last text extraction
         logs_timestamp = processing_info.get("logs_latest_update")
         if logs_timestamp and logs_timestamp > text_extraction_timestamp:
             # Bill has been updated since last text extraction - needs processing
+            print(f"   🔍 {bill_id}: Bill updated since last extraction - processing")
             return False
 
         # Check if any extracted text files exist
         files_dir = metadata_file.parent / "files"
         if not files_dir.exists():
             # No files directory - needs processing
+            print(f"   🔍 {bill_id}: Files directory doesn't exist - processing")
             return False
 
         # Check if any _extracted.txt files exist
         extracted_files = list(files_dir.rglob("*_extracted.txt"))
         if not extracted_files:
             # No extracted text files - needs processing
+            print(f"   🔍 {bill_id}: No extracted text files found - processing")
             return False
 
         # All checks passed - can skip this bill
+        print(f"   ⏭️  {bill_id}: Already extracted - skipping")
         return True
 
     except Exception as e:
