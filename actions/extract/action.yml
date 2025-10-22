@@ -132,8 +132,8 @@ runs:
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
 
-        # Add changes
-        git add data_output/
+        # Add changes (bill text files in country:us/)
+        git add country:us/ .windycivi/
 
         # Commit if there are changes
         if git diff --staged --quiet; then
@@ -143,8 +143,8 @@ runs:
           echo "📥 Pulling latest changes..."
           git pull --rebase origin main || {
             echo "⚠️ Rebase conflict detected, attempting to resolve..."
-            git checkout --ours data_output/
-            git add data_output/
+            git checkout --ours country:us/ .windycivi/
+            git add country:us/ .windycivi/
             git rebase --continue || true
           }
 
