@@ -1,0 +1,59 @@
+name: "Legislation Tools Pipeline"
+description: "Runs the legislation tools pipeline on cloned data"
+inputs:
+  data_directory:
+    description: "Directory containing the cloned data to process"
+    required: true
+    default: "usa-data-pipeline"
+  output_file:
+    description: "Output file for the processed results"
+    required: false
+    default: "recent_legislation_activity.txt"
+  limit:
+    description: "Limit the number of results"
+    required: false
+    default: "10"
+outputs:
+  result_count:
+    description: "Number of results found"
+    value: ${{ steps.pipeline.outputs.result_count }}
+  output_file:
+    description: "Path to the output file"
+    value: ${{ steps.pipeline.outputs.output_file }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Make tools executable
+      shell: bash
+      run: chmod +x ${{ github.action_path }}/tools/*.sh
+
+    - name: Run tools pipeline
+      id: pipeline
+      shell: bash
+      run: |
+        echo "=== Running Tools Pipeline ==="
+
+        # Set default values
+        DATA_DIR="usa-data-pipeline"
+        OUTPUT_FILE="${{ inputs.output_file }}"
+        LIMIT="${{ inputs.limit }}"
+
+        # Run the pipeline: find logs -> filter recent -> sort -> limit -> extract names
+        cd "$DATA_DIR"
+        ${{ github.action_path }}/tools/find_logs_json.sh | \
+        ${{ github.action_path }}/tools/filter_recent_logs.sh | \
+        ${{ github.action_path }}/tools/sort_logs_by_timestamp.sh | \
+        ${{ github.action_path }}/tools/limit_output.sh "$LIMIT" | \
+        ${{ github.action_path }}/tools/extract_name.sh > "../$OUTPUT_FILE"
+
+        echo "=== Pipeline Output ==="
+        cat "../$OUTPUT_FILE"
+
+        # Count results
+        result_count=$(wc -l < "../$OUTPUT_FILE")
+        echo "Found $result_count recent legislative activities"
+
+        # Set outputs
+        echo "result_count=$result_count" >> $GITHUB_OUTPUT
+        echo "output_file=../$OUTPUT_FILE" >> $GITHUB_OUTPUT
