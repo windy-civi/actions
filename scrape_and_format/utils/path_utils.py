@@ -2,15 +2,15 @@
 Path Utilities
 
 This module provides utilities for building consistent file paths across
-the data processing pipeline. Centralizes the logic for USA vs state-specific
-path structures.
+the data processing pipeline. Uses unified path structure for federal and
+state data (both use state:{code} pattern).
 """
 
 from pathlib import Path
 
 
 def build_data_path(
-    data_processed_folder: Path,
+    repo_root: Path,
     state_abbr: str,
     data_type: str,
     session_id: str,
@@ -20,7 +20,7 @@ def build_data_path(
     Build a standardized path for processed data.
 
     Args:
-        data_processed_folder: Base data_processed folder
+        repo_root: Root of the git repository (caller repo)
         state_abbr: State abbreviation ('usa', 'ca', 'tx', etc.)
         data_type: Type of data ('bills', 'events', 'vote_events')
         session_id: Legislative session ID
@@ -31,37 +31,24 @@ def build_data_path(
 
     Examples:
         >>> build_data_path(base, 'usa', 'bills', '119', 'HR1')
-        Path('data_processed/country:us/congress/sessions/119/bills/HR1')
+        Path('country:us/state:usa/sessions/119/bills/HR1')
 
         >>> build_data_path(base, 'ca', 'bills', '2023', 'AB123')
-        Path('data_processed/country:us/state:ca/sessions/2023/bills/AB123')
+        Path('country:us/state:ca/sessions/2023/bills/AB123')
     """
-    is_usa = state_abbr.lower() == "usa"
-
-    if is_usa:
-        return (
-            data_processed_folder
-            / "country:us"
-            / "congress"
-            / "sessions"
-            / session_id
-            / data_type
-            / identifier
-        )
-    else:
-        return (
-            data_processed_folder
-            / "country:us"
-            / f"state:{state_abbr.lower()}"
-            / "sessions"
-            / session_id
-            / data_type
-            / identifier
-        )
+    return (
+        repo_root
+        / "country:us"
+        / f"state:{state_abbr.lower()}"
+        / "sessions"
+        / session_id
+        / data_type
+        / identifier
+    )
 
 
 def build_bill_path(
-    data_processed_folder: Path,
+    repo_root: Path,
     state_abbr: str,
     session_id: str,
     bill_identifier: str,
@@ -70,7 +57,7 @@ def build_bill_path(
     Build path for a bill folder.
 
     Args:
-        data_processed_folder: Base data_processed folder
+        repo_root: Root of the git repository (caller repo)
         state_abbr: State abbreviation
         session_id: Legislative session ID
         bill_identifier: Bill identifier (e.g., 'HR 1')
@@ -80,12 +67,12 @@ def build_bill_path(
     """
     bill_id = bill_identifier.replace(" ", "")
     return build_data_path(
-        data_processed_folder, state_abbr, "bills", session_id, bill_id
+        repo_root, state_abbr, "bills", session_id, bill_id
     )
 
 
 def build_event_path(
-    data_processed_folder: Path,
+    repo_root: Path,
     state_abbr: str,
     session_id: str,
     event_identifier: str,
@@ -94,7 +81,7 @@ def build_event_path(
     Build path for an event folder.
 
     Args:
-        data_processed_folder: Base data_processed folder
+        repo_root: Root of the git repository (caller repo)
         state_abbr: State abbreviation
         session_id: Legislative session ID
         event_identifier: Event identifier
@@ -103,12 +90,12 @@ def build_event_path(
         Path to event folder
     """
     return build_data_path(
-        data_processed_folder, state_abbr, "events", session_id, event_identifier
+        repo_root, state_abbr, "events", session_id, event_identifier
     )
 
 
 def build_vote_event_path(
-    data_processed_folder: Path,
+    repo_root: Path,
     state_abbr: str,
     session_id: str,
     vote_identifier: str,
@@ -117,7 +104,7 @@ def build_vote_event_path(
     Build path for a vote event folder.
 
     Args:
-        data_processed_folder: Base data_processed folder
+        repo_root: Root of the git repository (caller repo)
         state_abbr: State abbreviation
         session_id: Legislative session ID
         vote_identifier: Vote event identifier
@@ -126,6 +113,5 @@ def build_vote_event_path(
         Path to vote event folder
     """
     return build_data_path(
-        data_processed_folder, state_abbr, "vote_events", session_id, vote_identifier
+        repo_root, state_abbr, "vote_events", session_id, vote_identifier
     )
-
