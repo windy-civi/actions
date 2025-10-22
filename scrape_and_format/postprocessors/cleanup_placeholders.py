@@ -15,7 +15,7 @@ from datetime import datetime
 from typing import Dict, List
 
 
-def load_orphan_tracking(data_processed_folder: Path) -> Dict:
+def load_orphan_tracking(repo_root: Path) -> Dict:
     """
     Load existing orphan tracking data.
 
@@ -31,7 +31,9 @@ def load_orphan_tracking(data_processed_folder: Path) -> Dict:
       }
     }
     """
-    tracking_file = data_processed_folder / "orphaned_placeholders_tracking.json"
+    tracking_file = (
+        repo_root / ".windycivi" / "errors" / "orphaned_placeholders_tracking.json"
+    )
 
     if tracking_file.exists():
         with open(tracking_file, "r", encoding="utf-8") as f:
@@ -40,15 +42,18 @@ def load_orphan_tracking(data_processed_folder: Path) -> Dict:
     return {}
 
 
-def save_orphan_tracking(data_processed_folder: Path, tracking_data: Dict) -> None:
+def save_orphan_tracking(repo_root: Path, tracking_data: Dict) -> None:
     """Save orphan tracking data to persistent file."""
-    tracking_file = data_processed_folder / "orphaned_placeholders_tracking.json"
+    tracking_file = (
+        repo_root / ".windycivi" / "errors" / "orphaned_placeholders_tracking.json"
+    )
+    tracking_file.parent.mkdir(parents=True, exist_ok=True)
 
     with open(tracking_file, "w", encoding="utf-8") as f:
         json.dump(tracking_data, f, indent=2, sort_keys=True)
 
 
-def cleanup_placeholders(data_processed_folder: Path) -> Dict[str, int]:
+def cleanup_placeholders(repo_root: Path) -> Dict[str, int]:
     """
     Clean up placeholder.json files after all processing is complete.
 
@@ -60,7 +65,7 @@ def cleanup_placeholders(data_processed_folder: Path) -> Dict[str, int]:
     5. If no: keep it and update tracking (first_seen, last_seen, occurrence_count)
 
     Args:
-        data_processed_folder: Path to data_output/data_processed
+        repo_root: Path to the git repository root
 
     Returns:
         Dict with stats:
@@ -75,7 +80,7 @@ def cleanup_placeholders(data_processed_folder: Path) -> Dict[str, int]:
     current_timestamp = datetime.now().isoformat()
 
     # Load existing tracking
-    orphan_tracking = load_orphan_tracking(data_processed_folder)
+    orphan_tracking = load_orphan_tracking(repo_root)
 
     placeholders_found = 0
     placeholders_deleted = 0
@@ -84,8 +89,8 @@ def cleanup_placeholders(data_processed_folder: Path) -> Dict[str, int]:
     resolved_orphans = 0
 
     # Find all placeholder.json files in bill folders
-    # Pattern: .../sessions/*/bills/*/placeholder.json
-    for placeholder_file in data_processed_folder.rglob("**/bills/*/placeholder.json"):
+    # Pattern: country:us/state:*/sessions/*/bills/*/placeholder.json
+    for placeholder_file in repo_root.rglob("**/bills/*/placeholder.json"):
         placeholders_found += 1
         bill_folder = placeholder_file.parent
         metadata_file = bill_folder / "metadata.json"
@@ -147,7 +152,7 @@ def cleanup_placeholders(data_processed_folder: Path) -> Dict[str, int]:
                     "session": session_id,
                     "vote_count": vote_count,
                     "event_count": event_count,
-                    "path": str(bill_folder.relative_to(data_processed_folder)),
+                    "path": str(bill_folder.relative_to(repo_root)),
                 }
                 new_orphans += 1
                 print(
@@ -157,8 +162,10 @@ def cleanup_placeholders(data_processed_folder: Path) -> Dict[str, int]:
 
     # Save updated tracking
     if orphan_tracking:
-        save_orphan_tracking(data_processed_folder, orphan_tracking)
-        print(f"\n📋 Orphan tracking updated: orphaned_placeholders_tracking.json")
+        save_orphan_tracking(repo_root, orphan_tracking)
+        print(
+            f"\n📋 Orphan tracking updated: .windycivi/errors/orphaned_placeholders_tracking.json"
+        )
         print(f"   Total orphans being tracked: {len(orphan_tracking)}")
 
         # Show chronic orphans (seen 3+ times)
