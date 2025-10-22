@@ -10,22 +10,22 @@ from utils.session_utils import load_session_mapping
 
 
 def link_events_to_bills_pipeline(
-    STATE_ABBR: str,
-    EVENT_ARCHIVE_FOLDER: Path,
-    DATA_PROCESSED_FOLDER: Path,
-    DATA_NOT_PROCESSED_FOLDER: Path,
-    BILL_TO_SESSION_FILE: Path,
-    SESSION_MAPPING_FILE: Path,
+    state_abbr: str,
+    event_archive_folder: Path,
+    repo_root: Path,
+    errors_folder: Path,
+    bill_session_mapping_file: Path,
+    sessions_file: Path,
 ) -> None:
     """
     Main pipeline for linking events to bills and saving them in the correct folder.
     """
     print("\n📦 Starting event-to-bill linking pipeline")
 
-    session_mapping = load_session_mapping(SESSION_MAPPING_FILE)
+    session_mapping = load_session_mapping(sessions_file)
     bill_to_session = load_bill_to_session_mapping(
-        BILL_TO_SESSION_FILE,
-        DATA_PROCESSED_FOLDER,
+        bill_session_mapping_file,
+        repo_root,
         session_mapping=session_mapping,
         force_rebuild=True,
     )
@@ -33,7 +33,7 @@ def link_events_to_bills_pipeline(
     print(f"📂 Loaded {len(bill_to_session)} bill-session mappings")
 
     skipped = []
-    for event_file in list_json_files(EVENT_ARCHIVE_FOLDER):
+    for event_file in list_json_files(event_archive_folder):
         with open(event_file) as f:
             data = json.load(f)
 
@@ -45,19 +45,19 @@ def link_events_to_bills_pipeline(
             session_meta = bill_to_session.get(bill_id)
             if session_meta:
                 run_handle_event(
-                    STATE_ABBR,
+                    state_abbr,
                     data,
-                    session_meta["session_id"],  # Pass session ID (e.g., "119") not name
+                    session_meta[
+                        "session_id"
+                    ],  # Pass session ID (e.g., "119") not name
                     session_meta["date_folder"],
-                    DATA_PROCESSED_FOLDER,
-                    DATA_NOT_PROCESSED_FOLDER,
+                    repo_root,
+                    errors_folder,
                     bill_id,
                     filename=event_file.name,
                 )
                 event_file.unlink()
-                missing_path = (
-                    DATA_NOT_PROCESSED_FOLDER / "missing_session" / event_file.name
-                )
+                missing_path = errors_folder / "missing_session" / event_file.name
                 if missing_path.exists():
                     missing_path.unlink()
                 break
@@ -66,8 +66,8 @@ def link_events_to_bills_pipeline(
 
     if skipped:
         bill_to_session = load_bill_to_session_mapping(
-            BILL_TO_SESSION_FILE,
-            DATA_PROCESSED_FOLDER,
+            bill_session_mapping_file,
+            repo_root,
             session_mapping=session_mapping,
             force_rebuild=True,
         )
@@ -79,19 +79,19 @@ def link_events_to_bills_pipeline(
                     with open(event_file) as f:
                         data = json.load(f)
                     run_handle_event(
-                        STATE_ABBR,
+                        state_abbr,
                         data,
-                        session_meta["session_id"],  # Pass session ID (e.g., "119") not name
+                        session_meta[
+                            "session_id"
+                        ],  # Pass session ID (e.g., "119") not name
                         session_meta["date_folder"],
-                        DATA_PROCESSED_FOLDER,
-                        DATA_NOT_PROCESSED_FOLDER,
+                        repo_root,
+                        errors_folder,
                         bill_id,
                         filename=event_file.name,
                     )
                     event_file.unlink()
-                    missing_path = (
-                        DATA_NOT_PROCESSED_FOLDER / "missing_session" / event_file.name
-                    )
+                    missing_path = errors_folder / "missing_session" / event_file.name
                     if missing_path.exists():
                         missing_path.unlink()
                     break

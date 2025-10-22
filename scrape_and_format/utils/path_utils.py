@@ -66,9 +66,7 @@ def build_bill_path(
         Path to bill folder
     """
     bill_id = bill_identifier.replace(" ", "")
-    return build_data_path(
-        repo_root, state_abbr, "bills", session_id, bill_id
-    )
+    return build_data_path(repo_root, state_abbr, "bills", session_id, bill_id)
 
 
 def build_event_path(
