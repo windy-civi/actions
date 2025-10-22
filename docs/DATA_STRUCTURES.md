@@ -18,28 +18,29 @@ Complete specification of all data formats produced by the Windy Civi legislativ
 **Note:** Each state/federal jurisdiction has its own repository. The structure below is what exists in each repo.
 
 ```
-{state}-legislation/                         # e.g., usa-data-pipeline, il-data-pipeline
+{state}-data-pipeline/                       # e.g., usa-data-pipeline, il-data-pipeline
+├── .github/
+│   └── workflows/                           # GitHub Actions
 ├── country:us/
-│   └── state:{state_code}/                    # state:usa (federal), state:il, state:tx, etc.
+│   └── state:{state_code}/                  # state:usa (federal), state:il, state:tx, etc.
 │       └── sessions/{session_id}/
 │           ├── bills/{bill_id}/
-│           │   ├── metadata.json              # Bill metadata
-│           │   ├── logs/                      # Action/vote logs
-│           │   └── files/                     # Bill text
-│           └── events/                        # Committee hearings
+│           │   ├── metadata.json            # Bill metadata
+│           │   ├── logs/                    # Action/vote logs
+│           │   └── files/                   # Bill text
+│           └── events/                      # Committee hearings
 │               └── {timestamp}_{event}.json
-├── .windycivi/                                 # Pipeline metadata (committed & reused)
-|   ├── errors/                                    # Processing errors & quality monitoring
-|   │   ├── missing_session/                       # Bills without session info
-|   │   ├── text_extraction_errors/                # Text extraction failures
-    │   ├── event_archive/                         # Events pending bill linkage
-    │   └── orphaned_placeholders_tracking.json    # Data quality tracking
-│   ├── bill_session_mapping/                  # Bill-to-session mappings
-│   │   └── {state}.json
-│   ├── sessions/                              # Session metadata
-│   │   └── {state}.json
-│   └── latest_timestamp_seen.txt              # Last processed timestamp
-├── .github/workflows/                         # GitHub Actions
+├── .windycivi/                              # Pipeline metadata (committed & reused)
+│   ├── errors/                              # Processing errors & quality monitoring
+│   │   ├── missing_session/                 # Bills without session info
+│   │   ├── text_extraction_errors/          # Text extraction failures
+│   │   ├── event_archive/                   # Events pending bill linkage
+│   │   └── orphaned_placeholders_tracking.json
+│   ├── bill_session_mapping.json            # Bill-to-session mappings
+│   ├── sessions.json                        # Session metadata
+│   └── latest_timestamp_seen.txt            # Last processed timestamp
+├── Pipfile                                  # Python dependencies
+├── Pipfile.lock
 └── README.md
 ```
 
@@ -48,19 +49,21 @@ Complete specification of all data formats produced by the Windy Civi legislativ
 1. **No `data_output/` wrapper** - Each repo is a data pipeline, so the root IS the output
 2. **No `data_processed/` folder** - Start directly with `country:us/`
 3. **Uniform jurisdiction naming** - Federal uses `state:usa` (not `congress`)
-4. **Renamed errors** - `data_not_processed/` → `errors/` (clearer naming)
+4. **Everything in `.windycivi/`** - All pipeline metadata grouped in one hidden folder
+5. **Flattened metadata files** - Each repo is state-specific, so `sessions.json` instead of `sessions/{state}.json`
 
 ### Why This Structure?
 
 - **One repo per jurisdiction** - usa-data-pipeline, il-data-pipeline, tx-data-pipeline, etc.
+- **Only 3 root folders** - `.github/`, `country:us/`, `.windycivi/` - clean and minimal
 - **Consistent paths** - Same structure for federal and state (simplifies bot code)
 - **OpenStates compatible** - Follows OpenCivicData jurisdiction model
-- **Flat when needed** - No unnecessary nesting at repo level
-- **Clear separation** - Data (`country:us/`), errors (`errors/`), and pipeline metadata (`_pipeline/`)
+- **Hidden pipeline folder** - `.windycivi/` follows Unix convention for configuration/metadata
+- **Clear separation** - Legislative data vs. pipeline metadata
 
-### Important: `_pipeline/` is Committed!
+### Important: `.windycivi/` is Committed!
 
-The `_pipeline/` folder contains **persistent metadata** that must be:
+The `.windycivi/` folder contains **persistent metadata** that must be:
 
 - ✅ Committed to git after each run
 - ✅ Pulled before each run (ensures incremental processing works)
@@ -69,8 +72,8 @@ The `_pipeline/` folder contains **persistent metadata** that must be:
 **Why?** These files enable incremental processing:
 
 - `latest_timestamp_seen.txt` - Prevents reprocessing old data
-- `sessions/{state}.json` - Maps session IDs to names/dates
-- `bill_session_mapping/{state}.json` - Links bills without session metadata
+- `sessions.json` - Maps session IDs to names/dates
+- `bill_session_mapping.json` - Links bills without session metadata
 
 Without these files, the pipeline would reprocess everything from scratch each night!
 
@@ -540,10 +543,10 @@ Monitors bills that have vote/event data but no bill metadata (data quality issu
 ### File Location
 
 ```
-errors/orphaned_placeholders_tracking.json
+.windycivi/errors/orphaned_placeholders_tracking.json
 ```
 
-Located in the `errors/` folder alongside other data quality issues and processing errors.
+Located in the `.windycivi/errors/` folder alongside other data quality issues and processing errors.
 
 ### Schema
 
@@ -733,15 +736,15 @@ Bill identifiers should:
 
 ### Path Changes
 
-| Old Path (v1)                                                            | New Path (v2)                                  |
-| ------------------------------------------------------------------------ | ---------------------------------------------- |
-| `data_output/data_processed/country:us/congress/sessions/119/bills/HR1/` | `country:us/state:usa/sessions/119/bills/HR1/` |
-| `data_output/data_processed/country:us/state:il/sessions/103/bills/HB1/` | `country:us/state:il/sessions/103/bills/HB1/`  |
-| `data_output/data_not_processed/`                                        | `errors/`                                      |
-| `bill_session_mapping/`                                                  | `_pipeline/bill_session_mapping/`              |
-| `sessions/`                                                              | `_pipeline/sessions/`                          |
-| `data_output/latest_timestamp_seen.txt`                                  | `_pipeline/latest_timestamp_seen.txt`          |
-| `data_output/orphaned_placeholders_tracking.json`                        | `errors/orphaned_placeholders_tracking.json`   |
+| Old Path (v1)                                                            | New Path (v2)                                           |
+| ------------------------------------------------------------------------ | ------------------------------------------------------- |
+| `data_output/data_processed/country:us/congress/sessions/119/bills/HR1/` | `country:us/state:usa/sessions/119/bills/HR1/`          |
+| `data_output/data_processed/country:us/state:il/sessions/103/bills/HB1/` | `country:us/state:il/sessions/103/bills/HB1/`           |
+| `data_output/data_not_processed/`                                        | `.windycivi/errors/`                                    |
+| `bill_session_mapping/{state}.json`                                      | `.windycivi/bill_session_mapping.json`                  |
+| `sessions/{state}.json`                                                  | `.windycivi/sessions.json`                              |
+| `data_output/latest_timestamp_seen.txt`                                  | `.windycivi/latest_timestamp_seen.txt`                  |
+| `data_output/orphaned_placeholders_tracking.json`                        | `.windycivi/errors/orphaned_placeholders_tracking.json` |
 
 ### Code Changes Required
 
@@ -759,9 +762,11 @@ repo_root / "country:us" / f"state:{state}" / "sessions" / ...
 
 - All references to `data_output/` → repo root
 - All references to `data_processed/` → repo root
-- All references to `data_not_processed/` → `errors/`
-- Move `bill_session_mapping/`, `sessions/`, `latest_timestamp_seen.txt` → `_pipeline/`
-- Move `orphaned_placeholders_tracking.json` → `errors/`
+- All references to `data_not_processed/` → `.windycivi/errors/`
+- Move `bill_session_mapping/{state}.json` → `.windycivi/bill_session_mapping.json`
+- Move `sessions/{state}.json` → `.windycivi/sessions.json`
+- Move `latest_timestamp_seen.txt` → `.windycivi/latest_timestamp_seen.txt`
+- Move `orphaned_placeholders_tracking.json` → `.windycivi/errors/orphaned_placeholders_tracking.json`
 
 **3. Standardize Federal Naming**:
 
@@ -780,38 +785,38 @@ path = ... / f"state:{state_abbr}" / ...
 
 1. **Update `path_utils.py`** - Remove special `congress` handling
 2. **Update action inputs** - Change `--git-repo-folder` expectations
-3. **Update all file I/O** - Point to `_pipeline/` and `errors/` folders
-4. **Update GitHub Actions** - Ensure `_pipeline/` is committed each run:
+3. **Update all file I/O** - Point to `.windycivi/` subfolder structure
+4. **Update GitHub Actions** - Ensure `.windycivi/` is committed each run:
    ```yaml
    - name: Commit changes
      run: |
-       git add country:us/ errors/ _pipeline/
+       git add country:us/ .windycivi/
        git commit -m "Update legislative data"
    ```
 5. **Update documentation** - All examples use new paths
 6. **Migrate existing repos** - One-time path restructure
 7. **Update caller workflows** - Point to new root structure
 
-### Critical: Git Workflow for `_pipeline/`
+### Critical: Git Workflow for `.windycivi/`
 
 **Every GitHub Action run must:**
 
-1. **Pull** `_pipeline/` at start (get latest session mappings, timestamps)
+1. **Pull** `.windycivi/` at start (get latest session mappings, timestamps)
 2. **Update** files during processing (sessions, mappings, timestamps)
-3. **Commit** `_pipeline/` at end (preserve for next run)
+3. **Commit** `.windycivi/` at end (preserve for next run)
 
 **Example workflow step:**
 
 ```yaml
 - name: Commit processed data
   run: |
-    git pull origin main  # Get latest _pipeline/ metadata
-    git add country:us/ errors/ _pipeline/
+    git pull origin main  # Get latest .windycivi/ metadata
+    git add country:us/ .windycivi/
     git commit -m "📊 Update legislative data - $(date -u +%Y-%m-%dT%H:%M:%SZ)"
     git push origin main
 ```
 
-**Why this matters:** Without committing `_pipeline/`, incremental processing breaks - the pipeline forgets what it processed and re-does everything!
+**Why this matters:** Without committing `.windycivi/`, incremental processing breaks - the pipeline forgets what it processed and re-does everything!
 
 ### Backward Compatibility
 
@@ -836,36 +841,37 @@ path = ... / f"state:{state_abbr}" / ...
 ```
 {state}-data-pipeline/
 │
+├── .github/workflows/              ← GitHub Actions
+│
 ├── country:us/state:{state}/sessions/{session}/
 │   ├── bills/{bill_id}/
-│   │   ├── metadata.json          ← Main bill data
+│   │   ├── metadata.json           ← Main bill data
 │   │   ├── logs/*.json             ← Actions, votes
 │   │   └── files/*                 ← Bill text (PDF, XML, extracted)
 │   └── events/*.json               ← Committee hearings
 │
-├── errors/                         ← All errors & quality issues
-│   ├── missing_session/
-│   ├── text_extraction_errors/
-│   ├── event_archive/
-│   └── orphaned_placeholders_tracking.json
-│
-└── _pipeline/                      ← Pipeline metadata (MUST commit!)
-    ├── bill_session_mapping/{state}.json
-    ├── sessions/{state}.json
+└── .windycivi/                     ← Pipeline metadata (MUST commit!)
+    ├── errors/                     ← All errors & quality issues
+    │   ├── missing_session/
+    │   ├── text_extraction_errors/
+    │   ├── event_archive/
+    │   └── orphaned_placeholders_tracking.json
+    ├── bill_session_mapping.json   ← Flattened (state-specific repo)
+    ├── sessions.json               ← Flattened (state-specific repo)
     └── latest_timestamp_seen.txt
 ```
 
 ### What Goes Where?
 
-| Data Type                | Location                                     | Committed? | Purpose                             |
-| ------------------------ | -------------------------------------------- | ---------- | ----------------------------------- |
-| **Bills, votes, events** | `country:us/state:{state}/`                  | ✅ Yes     | Legislative data                    |
-| **Extracted text**       | `country:us/.../bills/{id}/files/`           | ✅ Yes     | Bill text                           |
-| **Processing errors**    | `errors/`                                    | ✅ Yes     | Debugging, quality monitoring       |
-| **Session mappings**     | `_pipeline/sessions/`                        | ✅ Yes     | Required for incremental processing |
-| **Timestamp tracking**   | `_pipeline/latest_timestamp_seen.txt`        | ✅ Yes     | Prevents reprocessing               |
-| **Bill-session links**   | `_pipeline/bill_session_mapping/`            | ✅ Yes     | Maps bills without session metadata |
-| **Orphan tracking**      | `errors/orphaned_placeholders_tracking.json` | ✅ Yes     | Data quality monitoring             |
+| Data Type                | Location                                                | Committed? | Purpose                             |
+| ------------------------ | ------------------------------------------------------- | ---------- | ----------------------------------- |
+| **Bills, votes, events** | `country:us/state:{state}/`                             | ✅ Yes     | Legislative data                    |
+| **Extracted text**       | `country:us/.../bills/{id}/files/`                      | ✅ Yes     | Bill text                           |
+| **Processing errors**    | `.windycivi/errors/`                                    | ✅ Yes     | Debugging, quality monitoring       |
+| **Session mappings**     | `.windycivi/sessions.json`                              | ✅ Yes     | Required for incremental processing |
+| **Timestamp tracking**   | `.windycivi/latest_timestamp_seen.txt`                  | ✅ Yes     | Prevents reprocessing               |
+| **Bill-session links**   | `.windycivi/bill_session_mapping.json`                  | ✅ Yes     | Maps bills without session metadata |
+| **Orphan tracking**      | `.windycivi/errors/orphaned_placeholders_tracking.json` | ✅ Yes     | Data quality monitoring             |
 
 **Everything is committed to git** - no local-only files. This ensures the pipeline can resume from where it left off.
 
