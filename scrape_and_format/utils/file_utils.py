@@ -50,10 +50,10 @@ def extract_session_mapping(jurisdiction_data: dict) -> dict[str, SessionInfo]:
 
 
 def ensure_session_mapping(
-    state_abbr: str, base_path: Path, input_folder: str | Path
+    state_abbr: str, windycivi_folder: Path, input_folder: str | Path
 ) -> dict[str, SessionInfo]:
     """
-    Ensures sessions/{state_abbr}.json exists.
+    Ensures .windycivi/sessions.json exists.
     - If jurisdiction_*.json is found, extract and overwrite session cache.
     - If not found, fallback to OpenStates API only if cache doesn't already exist.
     Returns a dictionary like:
@@ -62,26 +62,26 @@ def ensure_session_mapping(
         ...
     }
     """
-    session_cache_path = base_path / "sessions" / f"{state_abbr}.json"
-    sessions_folder = base_path / "sessions"
-    sessions_folder.mkdir(parents=True, exist_ok=True)
+    # Flattened path: no {state}.json subfolder since each repo is state-specific
+    session_cache_path = windycivi_folder / "sessions.json"
+    windycivi_folder.mkdir(parents=True, exist_ok=True)
 
     # 1. Look for jurisdiction file
     jurisdiction_files = list(Path(input_folder).glob("jurisdiction_*.json"))
     if jurisdiction_files:
-        print(f"🔍 Found jurisdiction file — updating sessions/{state_abbr}.json")
+        print(f"🔍 Found jurisdiction file — updating .windycivi/sessions.json")
         with open(jurisdiction_files[0], "r", encoding="utf-8") as f:
             jurisdiction_data = json.load(f)
         session_mapping = extract_session_mapping(jurisdiction_data)
         if session_mapping:
             with open(session_cache_path, "w", encoding="utf-8") as f:
                 json.dump(session_mapping, f, indent=2)
-            print(f"📅 Wrote extracted session mapping to sessions/{state_abbr}.json")
+            print(f"📅 Wrote extracted session mapping to .windycivi/sessions.json")
             return session_mapping
 
     # 2. If no jurisdiction file, use existing session cache if it exists
     if session_cache_path.exists():
-        print(f"✔️ Using existing sessions/{state_abbr}.json")
+        print(f"✔️ Using existing .windycivi/sessions.json")
         with open(session_cache_path, "r", encoding="utf-8") as f:
             return json.load(f)
 
@@ -105,7 +105,7 @@ def ensure_session_mapping(
                     }
             with open(session_cache_path, "w", encoding="utf-8") as f:
                 json.dump(session_mapping, f, indent=2)
-            print(f"✅ Wrote session mapping to sessions/{state_abbr}.json")
+            print(f"✅ Wrote session mapping to .windycivi/sessions.json")
             return session_mapping
         else:
             print(f"⚠️ Failed to fetch sessions (status {response.status_code})")

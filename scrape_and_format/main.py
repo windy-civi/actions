@@ -14,7 +14,7 @@ from postprocessors.event_bill_linker import link_events_to_bills_pipeline
 from postprocessors.cleanup_placeholders import cleanup_placeholders
 from utils.file_utils import verify_folder_exists
 
-SESSION_MAPPING = {}
+session_mapping = {}
 
 
 @click.command()
@@ -40,26 +40,25 @@ def main(
     openstates_data_folder: Path,
     git_repo_folder: Path,
 ):
-    STATE_ABBR = state.lower()
-    DATA_OUTPUT = git_repo_folder / "data_output"
-    DATA_PROCESSED_FOLDER = DATA_OUTPUT / "data_processed"
-    DATA_NOT_PROCESSED_FOLDER = DATA_OUTPUT / "data_not_processed"
-    EVENT_ARCHIVE_FOLDER = DATA_OUTPUT / "event_archive"
-    # Created to map bills with no session metadata
-    BILL_TO_SESSION_FILE = (
-        git_repo_folder / "bill_session_mapping" / f"{STATE_ABBR}.json"
-    )
-    # Maps dates to session names and folders
-    # e.g. "113": {"name": "113th Congress", "date_folder": "2013-2015"}
-    SESSION_MAPPING_FILE = git_repo_folder / "sessions" / f"{STATE_ABBR}.json"
-    SESSION_LOG_PATH = DATA_OUTPUT / "new_sessions_added.txt"
+    state_abbr = state.lower()
+
+    # New v2.0 structure: .windycivi/ contains all pipeline metadata
+    windycivi_folder = git_repo_folder / ".windycivi"
+    errors_folder = windycivi_folder / "errors"
+    event_archive_folder = errors_folder / "event_archive"
+
+    # Flattened files (no {state}.json subfolder since each repo is state-specific)
+    bill_session_mapping_file = windycivi_folder / "bill_session_mapping.json"
+    sessions_file = windycivi_folder / "sessions.json"
+    session_log_path = windycivi_folder / "new_sessions_added.txt"
+
+    # repo_root is where country:us/ lives (no data_output/data_processed wrapper)
+    repo_root = git_repo_folder
 
     # Ensure output folders exist
-    DATA_PROCESSED_FOLDER.mkdir(parents=True, exist_ok=True)
-    DATA_NOT_PROCESSED_FOLDER.mkdir(parents=True, exist_ok=True)
-    EVENT_ARCHIVE_FOLDER.mkdir(parents=True, exist_ok=True)
-    (BILL_TO_SESSION_FILE.parent).mkdir(parents=True, exist_ok=True)
-    (SESSION_MAPPING_FILE.parent).mkdir(parents=True, exist_ok=True)
+    errors_folder.mkdir(parents=True, exist_ok=True)
+    event_archive_folder.mkdir(parents=True, exist_ok=True)
+    windycivi_folder.mkdir(parents=True, exist_ok=True)
 
     # Read latest timestamps using the output folder
     latest_timestamps: LatestTimestamps = read_latest_timestamps(git_repo_folder)
@@ -67,51 +66,51 @@ def main(
 
     # 1. Verify input_folder exists
     verify_folder_exists(openstates_data_folder)
-    # 2. Ensure state specific session mapping is available
-    SESSION_MAPPING.update(
-        ensure_session_mapping(STATE_ABBR, git_repo_folder, openstates_data_folder)
+    # 2. Ensure state specific session mapping is available (from .windycivi/sessions.json)
+    session_mapping.update(
+        ensure_session_mapping(state_abbr, windycivi_folder, openstates_data_folder)
     )
 
     # 3. Load and parse all input JSON files
     all_json_files = load_json_files(
         openstates_data_folder,
-        EVENT_ARCHIVE_FOLDER,
-        DATA_NOT_PROCESSED_FOLDER,
+        event_archive_folder,
+        errors_folder,
         latest_timestamps,
-        STATE_ABBR,
-        DATA_PROCESSED_FOLDER,
+        state_abbr,
+        repo_root,
     )
 
     # 4. Route and process by handler (returns counts)
     counts = process_and_save(
-        STATE_ABBR,
+        state_abbr,
         all_json_files,
-        DATA_NOT_PROCESSED_FOLDER,
-        SESSION_MAPPING,
-        SESSION_LOG_PATH,
-        DATA_PROCESSED_FOLDER,
+        errors_folder,
+        session_mapping,
+        session_log_path,
+        repo_root,
         latest_timestamps,
         git_repo_folder,
     )
 
     # 5. Link archived event logs to state sessions and save
-    if EVENT_ARCHIVE_FOLDER.exists():
+    if event_archive_folder.exists():
         print("Linking event references to related bills...")
         link_events_to_bills_pipeline(
-            STATE_ABBR,
-            EVENT_ARCHIVE_FOLDER,
-            DATA_PROCESSED_FOLDER,
-            DATA_NOT_PROCESSED_FOLDER,
-            BILL_TO_SESSION_FILE,
-            SESSION_MAPPING_FILE,
+            state_abbr,
+            event_archive_folder,
+            repo_root,
+            errors_folder,
+            bill_session_mapping_file,
+            sessions_file,
         )
     else:
         print(
-            f"⚠️ Event archive folder {EVENT_ARCHIVE_FOLDER} does not exist. Skipping event linking.\n🚀 Processing complete."
+            f"⚠️ Event archive folder {event_archive_folder} does not exist. Skipping event linking.\n🚀 Processing complete."
         )
 
     # 6. Cleanup placeholder files (post-processing)
-    cleanup_stats = cleanup_placeholders(DATA_PROCESSED_FOLDER)
+    cleanup_stats = cleanup_placeholders(repo_root)
 
     print("\n📊 Processing summary:")
     print(f"Bills saved: {counts.get('bills', 0)}")
