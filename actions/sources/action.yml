@@ -84,13 +84,14 @@ runs:
           repo=$(echo "$repo" | xargs)
           
           # Use repository name as directory name in temp directory
-          dir="$RUNNER_TEMP"
+          dir="$RUNNER_TEMP/$(basename "$repo")"
           
           clone_repo "$repo" "$dir"
         done <<< "${{ inputs.sources }}"
 
         # Set outputs
-        echo "directories=$(IFS=','; echo "${DIRECTORIES[*]}")" >> $GITHUB_OUTPUT
+        IFS=','
+        echo "directories=${DIRECTORIES[*]}" >> $GITHUB_OUTPUT
         echo "repository-count=$REPO_COUNT" >> $GITHUB_OUTPUT
 
         echo "Cloning completed successfully!"

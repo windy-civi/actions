@@ -31,7 +31,7 @@ runs:
         LIMIT="${{ inputs.limit }}"
 
         # Run the pipeline: find logs -> filter recent -> sort -> limit -> extract names
-        cd "$RUNNER_TEMP"
+        cd "$RUNNER_TEMP/usa-data-pipeline"
         ${{ github.action_path }}/tools/find_logs_json.sh | \
         ${{ github.action_path }}/tools/filter_recent_logs.sh | \
         ${{ github.action_path }}/tools/sort_logs_by_timestamp.sh | \
