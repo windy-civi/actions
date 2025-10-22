@@ -107,24 +107,30 @@ See the [docs/](docs/) folder for additional technical guides.
 ## 📊 Output Structure
 
 ```
-data_output/
-├── data_processed/
-│   └── country:us/
-│       └── congress/                    # or state:tn/ for state data
-│           └── sessions/119/
-│               ├── bills/
-│               │   └── HR1234/
-│               │       ├── metadata.json           # Bill data + processing timestamps
-│               │       ├── logs/                   # Action logs + vote events
-│               │       │   ├── 20250101T120000Z_introduced.json
-│               │       │   └── 20250115T143000Z_vote_event_passed.json
-│               │       └── files/                  # Bill text
-│               │           ├── HR1234_text.xml     # Original XML
-│               │           ├── HR1234_text.txt     # Extracted text
-│               │           └── HR1234_text.pdf     # PDF fallback
-│               └── events/                         # Hearing/committee events
-│                   └── 20250325T100000Z_hearing.json
-├── orphaned_placeholders_tracking.json  # Data quality monitoring
+country:us/
+└── state:usa/                           # state:usa for federal, state:il for Illinois, etc.
+    └── sessions/119/
+        ├── bills/
+        │   └── HR1234/
+        │       ├── metadata.json           # Bill data + processing timestamps
+        │       ├── logs/                   # Action logs + vote events
+        │       │   ├── 20250101T120000Z_introduced.json
+        │       │   └── 20250115T143000Z_vote_event_passed.json
+        │       └── files/                  # Bill text
+        │           ├── HR1234_text.xml     # Original XML
+        │           ├── HR1234_text.txt     # Extracted text
+        │           └── HR1234_text.pdf     # PDF fallback
+        └── events/                         # Hearing/committee events
+            └── 20250325T100000Z_hearing.json
+
+.windycivi/                              # Pipeline metadata
+├── errors/
+│   ├── missing_session/
+│   ├── text_extraction_errors/
+│   ├── event_archive/
+│   └── orphaned_placeholders_tracking.json  # Data quality monitoring
+├── bill_session_mapping.json
+├── sessions.json
 └── latest_timestamp_seen.txt            # Last processed timestamp
 ```
 
@@ -160,7 +166,7 @@ The pipeline automatically tracks **orphaned bills** - bills that have vote even
 - Bills that weren't scraped but had related activity
 - Timing issues (bill not scraped yet)
 
-Check `data_output/data_processed/orphaned_placeholders_tracking.json` to see:
+Check `.windycivi/errors/orphaned_placeholders_tracking.json` to see:
 
 - Which bills are orphaned
 - How long they've been orphaned (`first_seen`, `last_seen`)
