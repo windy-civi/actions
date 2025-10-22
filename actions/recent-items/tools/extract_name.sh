@@ -48,24 +48,27 @@ while IFS= read -r line; do
         fi
     fi
     
-    # Format output with title and identifier if available
+    # Format output as 2 lines with emojis
     if [[ -n "$title" && "$title" != "null" && -n "$identifier" && "$identifier" != "null" ]]; then
+        echo "🧾 [$identifier] $title"
         if [[ -n "$timestamp" && "$timestamp" != "null" ]]; then
-            echo "[$identifier] $title | $main_content | $timestamp"
+            echo "➡️ $main_content $timestamp"
         else
-            echo "[$identifier] $title | $main_content"
+            echo "➡️ $main_content"
         fi
     elif [[ -n "$identifier" && "$identifier" != "null" ]]; then
+        echo "🧾 [$identifier]"
         if [[ -n "$timestamp" && "$timestamp" != "null" ]]; then
-            echo "[$identifier] | $main_content | $timestamp"
+            echo "➡️ $main_content $timestamp"
         else
-            echo "[$identifier] | $main_content"
+            echo "➡️ $main_content"
         fi
     else
+        echo "🧾"
         if [[ -n "$timestamp" && "$timestamp" != "null" ]]; then
-            echo "$main_content | $timestamp"
+            echo "➡️ $main_content $timestamp"
         else
-            echo "$main_content"
+            echo "➡️ $main_content"
         fi
     fi
 done
