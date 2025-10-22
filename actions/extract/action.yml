@@ -35,9 +35,9 @@ runs:
       run: |
         echo "📄 Extracting text from PDFs and XMLs for ${{ inputs.state }}"
 
-        # Check if the data directory exists in the calling repo
-        if [ ! -d "${{ github.workspace }}/data_output/data_processed" ]; then
-          echo "❌ Data directory not found: ${{ github.workspace }}/data_output/data_processed"
+        # Check if the data directory exists in the calling repo (v2.0 structure)
+        if [ ! -d "${{ github.workspace }}/country:us" ]; then
+          echo "❌ Data directory not found: ${{ github.workspace }}/country:us"
           echo "Make sure the data pipeline has been run first"
           exit 1
         fi
@@ -108,7 +108,7 @@ runs:
         EXIT_CODE=0
         pipenv run python text_extraction/main.py \
           --state "${{ inputs.state }}" \
-          --data-folder "${{ github.workspace }}/data_output/data_processed" \
+          --data-folder "${{ github.workspace }}" \
           --output-folder "${{ github.workspace }}" \
           --incremental || EXIT_CODE=$?
 
