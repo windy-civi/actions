@@ -5,6 +5,10 @@ inputs:
     description: "Limit the number of results"
     required: false
     default: "10"
+  output_file:
+    description: "Name of the output file to create"
+    required: false
+    default: "recent_items.txt"
 outputs:
   result_count:
     description: "Number of results found"
