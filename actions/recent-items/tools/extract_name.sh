@@ -28,6 +28,9 @@ while IFS= read -r line; do
         identifier=$(jq -r '.identifier // empty' "$metadata_file" 2>/dev/null)
     fi
     
+    # Extract timestamp from action.date
+    timestamp=$(jq -r '.action.date // empty' "$line" 2>/dev/null)
+    
     # Try to extract the "name" key first
     name=$(jq -r '.name // empty' "$line" 2>/dev/null)
     
@@ -47,10 +50,22 @@ while IFS= read -r line; do
     
     # Format output with title and identifier if available
     if [[ -n "$title" && "$title" != "null" && -n "$identifier" && "$identifier" != "null" ]]; then
-        echo "[$identifier] $title | $main_content"
+        if [[ -n "$timestamp" && "$timestamp" != "null" ]]; then
+            echo "[$identifier] $title | $main_content | $timestamp"
+        else
+            echo "[$identifier] $title | $main_content"
+        fi
     elif [[ -n "$identifier" && "$identifier" != "null" ]]; then
-        echo "[$identifier] | $main_content"
+        if [[ -n "$timestamp" && "$timestamp" != "null" ]]; then
+            echo "[$identifier] | $main_content | $timestamp"
+        else
+            echo "[$identifier] | $main_content"
+        fi
     else
-        echo "$main_content"
+        if [[ -n "$timestamp" && "$timestamp" != "null" ]]; then
+            echo "$main_content | $timestamp"
+        else
+            echo "$main_content"
+        fi
     fi
 done
