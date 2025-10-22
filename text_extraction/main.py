@@ -18,7 +18,7 @@ from utils.text_extraction import process_bills_in_batch
     "--data-folder",
     type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
     required=True,
-    help="Path to the data_output/data_processed folder containing bill data.",
+    help="Path to the repo root containing bill data (with country:us/ structure).",
 )
 @click.option(
     "--output-folder",
@@ -49,10 +49,10 @@ def main(
         return 1
 
     # Check if we have any bill data
-    bill_folders = list(data_folder.glob("country:us/*/sessions/*/bills/*"))
+    bill_folders = list(data_folder.glob("country:us/state:*/sessions/*/bills/*"))
     if not bill_folders:
         print(f"❌ No bill folders found in: {data_folder}")
-        print("Expected structure: country:us/*/sessions/*/bills/*")
+        print("Expected structure: country:us/state:*/sessions/*/bills/*")
         return 1
 
     print(f"📄 Found {len(bill_folders)} bill folders to process")
