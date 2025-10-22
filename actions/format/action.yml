@@ -98,8 +98,8 @@ runs:
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
 
-        # Only commit the actual deliverables
-        git add data_output/ || true
+        # Commit the actual deliverables: legislative data and pipeline metadata
+        git add country:us/ .windycivi/ || true
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
@@ -107,9 +107,9 @@ runs:
           echo "📥 Pulling latest changes..."
           git pull --rebase origin main || {
             echo "⚠️ Rebase conflict detected, attempting to resolve..."
-            # Our changes are in data_output/, so accept ours for that directory
-            git checkout --ours data_output/
-            git add data_output/
+            # Our changes are in country:us/ and .windycivi/, so accept ours
+            git checkout --ours country:us/ .windycivi/
+            git add country:us/ .windycivi/
             git rebase --continue || true
           }
 
