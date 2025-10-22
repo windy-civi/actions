@@ -71,4 +71,7 @@ while IFS= read -r line; do
             echo "➡️ $main_content"
         fi
     fi
+    
+    # Add separator after each item
+    echo "------"
 done
