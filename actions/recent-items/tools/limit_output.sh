@@ -15,4 +15,4 @@ if ! [[ "$LIMIT" =~ ^[0-9]+$ ]] || [ "$LIMIT" -le 0 ]; then
 fi
 
 # Read from stdin and limit output
-head -n "$LIMIT"
+head -n "$LIMIT" 2>/dev/null || true

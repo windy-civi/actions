@@ -17,4 +17,4 @@ while IFS= read -r line; do
         timestamp="${BASH_REMATCH[1]}"
         echo "$timestamp|$line"
     fi
-done | sort -r | cut -d'|' -f2-
+done | sort -r | cut -d'|' -f2- 2>/dev/null || true
