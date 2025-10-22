@@ -1,14 +1,6 @@
 name: "Legislation Tools Pipeline"
 description: "Runs the legislation tools pipeline on cloned data"
 inputs:
-  data_directory:
-    description: "Directory containing the cloned data to process"
-    required: true
-    default: "usa-data-pipeline"
-  output_file:
-    description: "Output file for the processed results"
-    required: false
-    default: "recent_legislation_activity.txt"
   limit:
     description: "Limit the number of results"
     required: false
@@ -35,12 +27,11 @@ runs:
         echo "=== Running Tools Pipeline ==="
 
         # Set default values
-        DATA_DIR="usa-data-pipeline"
         OUTPUT_FILE="${{ inputs.output_file }}"
         LIMIT="${{ inputs.limit }}"
 
         # Run the pipeline: find logs -> filter recent -> sort -> limit -> extract names
-        cd "$DATA_DIR"
+        cd "$RUNNER_TEMP"
         ${{ github.action_path }}/tools/find_logs_json.sh | \
         ${{ github.action_path }}/tools/filter_recent_logs.sh | \
         ${{ github.action_path }}/tools/sort_logs_by_timestamp.sh | \

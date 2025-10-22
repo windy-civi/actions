@@ -83,8 +83,8 @@ runs:
           # Remove any whitespace
           repo=$(echo "$repo" | xargs)
           
-          # Use repository name as directory name
-          dir=$(basename "$repo")
+          # Use repository name as directory name in temp directory
+          dir="$RUNNER_TEMP"
           
           clone_repo "$repo" "$dir"
         done <<< "${{ inputs.sources }}"
