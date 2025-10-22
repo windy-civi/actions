@@ -118,34 +118,32 @@ STATE-data-pipeline/
 ├── .github/workflows/
 │   ├── scrape-and-format-data.yml  # Metadata scraping + formatting
 │   └── extract-text.yml             # Text extraction (independent)
-├── data_output/
-│   ├── data_processed/              # Clean structured output
-│   │   ├── country:us/state:xx/
-│   │   │   └── sessions/
-│   │   │       └── {session_id}/
-│   │   │           ├── bills/
-│   │   │           │   └── {bill_id}/
-│   │   │           │       ├── metadata.json      # Bill data + _processing timestamps
-│   │   │           │       ├── files/             # Extracted text & documents
-│   │   │           │       │   ├── *.pdf          # Original PDFs
-│   │   │           │       │   ├── *.xml          # Original XMLs
-│   │   │           │       │   └── *_extracted.txt # Extracted text
-│   │   │           │       └── logs/              # Action/event/vote logs
-│   │   │           └── events/                    # Committee hearings
-│   │   │               └── {timestamp}_hearing.json
-│   │   └── orphaned_placeholders_tracking.json  # Data quality monitoring
-│   ├── data_not_processed/          # Extraction/formatting errors
+├── country:us/
+│   └── state:xx/                    # state:usa for federal, state:il for Illinois, etc.
+│       └── sessions/
+│           └── {session_id}/
+│               ├── bills/
+│               │   └── {bill_id}/
+│               │       ├── metadata.json      # Bill data + _processing timestamps
+│               │       ├── files/             # Extracted text & documents
+│               │       │   ├── *.pdf          # Original PDFs
+│               │       │   ├── *.xml          # Original XMLs
+│               │       │   └── *_extracted.txt # Extracted text
+│               │       └── logs/              # Action/event/vote logs
+│               └── events/                    # Committee hearings
+│                   └── {timestamp}_hearing.json
+├── .windycivi/                      # Pipeline metadata (committed)
+│   ├── errors/                      # Processing errors
 │   │   ├── text_extraction_errors/  # Text extraction failures
 │   │   │   ├── download_failures/   # Failed downloads
 │   │   │   ├── parsing_errors/      # Failed text parsing
 │   │   │   └── missing_files/       # Missing source files
-│   │   └── missing_session/         # Bills without session info
-│   ├── event_archive/               # Archived event data
+│   │   ├── missing_session/         # Bills without session info
+│   │   ├── event_archive/           # Archived event data
+│   │   └── orphaned_placeholders_tracking.json  # Data quality monitoring
+│   ├── bill_session_mapping.json    # Bill-to-session mappings (flattened)
+│   ├── sessions.json                # Session metadata (flattened)
 │   └── latest_timestamp_seen.txt    # Last processed timestamp
-├── bill_session_mapping/            # Bill-to-session mappings
-│   └── {state}.json
-├── sessions/                        # Session metadata
-│   └── {state}.json
 ├── Pipfile, Pipfile.lock
 └── README.md
 ```
@@ -154,9 +152,9 @@ STATE-data-pipeline/
 
 ## 📦 Output Format
 
-### Metadata Output (`data_processed/`)
+### Metadata Output (`country:us/state:*/`)
 
-Formatted metadata is saved to `data_output/data_processed/`, organized by session and bill.
+Formatted metadata is saved to `country:us/state:xx/sessions/`, organized by session and bill.
 
 Each bill directory contains:
 
@@ -196,14 +194,14 @@ When text extraction is enabled, each bill directory also includes:
   - `*.html` – Original HTML documents
   - `*_extracted.txt` – Plain text extracted from documents
 
-### Error Output (`data_not_processed/`)
+### Error Output (`.windycivi/errors/`)
 
 Failed items are logged separately:
 
-- `text_extraction_errors/download_failures/` – Documents that couldn't be downloaded
-- `text_extraction_errors/parsing_errors/` – Documents that couldn't be parsed
-- `text_extraction_errors/missing_files/` – Bills missing source files
-- `missing_session/` – Bills without session information
+- `.windycivi/errors/text_extraction_errors/download_failures/` – Documents that couldn't be downloaded
+- `.windycivi/errors/text_extraction_errors/parsing_errors/` – Documents that couldn't be parsed
+- `.windycivi/errors/text_extraction_errors/missing_files/` – Bills missing source files
+- `.windycivi/errors/missing_session/` – Bills without session information
 
 ### Data Quality Monitoring (`orphaned_placeholders_tracking.json`)
 
@@ -326,7 +324,7 @@ Uncomment the copy and commit steps in your workflow file:
 And include `_data` in the commit:
 
 ```bash
-git add _data data_output bill_session_mapping sessions
+git add _data country:us/ .windycivi/
 ```
 
 ### 🚫 To Disable `_data` Saving (Default):
@@ -334,7 +332,7 @@ git add _data data_output bill_session_mapping sessions
 Comment out the copy step and exclude `_data` from the commit command:
 
 ```bash
-git add data_output bill_session_mapping sessions
+git add country:us/ .windycivi/
 ```
 
 ---
@@ -374,7 +372,7 @@ pipenv run python scrape_and_format/main.py \
 # Run text extraction (with incremental flag)
 pipenv run python text_extraction/main.py \
   --state il \
-  --data-folder /path/to/output/data_output/data_processed \
+  --data-folder /path/to/output \
   --output-folder /path/to/output \
   --incremental
 ```
@@ -402,9 +400,9 @@ See the [known_problems/](https://github.com/windy-civi/toolkit/tree/main/known_
 
 ### Check Data Quality
 
-1. Review `orphaned_placeholders_tracking.json` for data issues
+1. Review `.windycivi/errors/orphaned_placeholders_tracking.json` for data issues
 2. Look for chronic orphans (occurrence_count >= 3)
-3. Check `data_not_processed/` for formatting/extraction errors
+3. Check `.windycivi/errors/` for formatting/extraction errors
 4. Monitor auto-save commits during text extraction runs
 
 ### Common Issues
@@ -417,7 +415,7 @@ See the [known_problems/](https://github.com/windy-civi/toolkit/tree/main/known_
 
 **Text extraction fails or times out**:
 
-- Check `data_not_processed/text_extraction_errors/` for details
+- Check `.windycivi/errors/text_extraction_errors/` for details
 - Look for auto-save commits (pipeline saves progress every 30 minutes)
 - Re-run the workflow - it will resume from where it left off (incremental)
 - Review error logs for specific bills
@@ -449,9 +447,9 @@ For discussions, join our community on Slack or GitHub Discussions.
 
 1. ✅ Verify both workflows are enabled
 2. ✅ Test with manual trigger first (start with Scrape & Format)
-3. ✅ Check output in `data_output/data_processed/`
-4. ✅ Review `orphaned_placeholders_tracking.json` for data quality
-5. ✅ Check any errors in `data_not_processed/`
+3. ✅ Check output in `country:us/state:xx/sessions/`
+4. ✅ Review `.windycivi/errors/orphaned_placeholders_tracking.json` for data quality
+5. ✅ Check any errors in `.windycivi/errors/`
 6. ✅ Test text extraction workflow independently
 7. ✅ Enable scheduled runs once testing is successful
 8. ✅ Monitor first few automated runs for issues
