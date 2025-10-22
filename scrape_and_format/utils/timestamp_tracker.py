@@ -14,7 +14,7 @@ class LatestTimestamps(TypedDict):
 
 def get_latest_timestamp_path(output_folder: Path) -> Path:
     """Get the path to the latest timestamp file based on the output folder."""
-    return output_folder / "data_output" / "latest_timestamp_seen.txt"
+    return output_folder / ".windycivi" / "latest_timestamp_seen.txt"
 
 
 def get_default_timestamps() -> LatestTimestamps:
