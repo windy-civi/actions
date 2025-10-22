@@ -15,10 +15,10 @@ def clean_event_name(name: str) -> str:
 
 
 def handle_event(
-    STATE_ABBR: str,
+    state_abbr: str,
     data: dict[str, any],
-    DATA_PROCESSED_FOLDER: Path,
-    DATA_NOT_PROCESSED_FOLDER: Path,
+    repo_root: Path,
+    errors_folder: Path,
     filename: str,
     latest_timestamps: LatestTimestamps,
     session_id: str = None,
@@ -34,7 +34,7 @@ def handle_event(
         data,
         "start_date",
         filename,
-        DATA_NOT_PROCESSED_FOLDER,
+        errors_folder,
         "from_handle_event_missing_start_date",
         f"Event {event_id} missing start_date",
     )
@@ -48,7 +48,7 @@ def handle_event(
             data,
             "bill_identifier",
             filename,
-            DATA_NOT_PROCESSED_FOLDER,
+            errors_folder,
             "from_handle_event_missing_bill_identifier",
             "Event missing bill_identifier",
         )
@@ -73,27 +73,14 @@ def handle_event(
 
     # Build path to events folder
     # Events are saved as individual files directly in the events/ folder (not subdirectories)
-    # Note: We don't use build_data_path here because events don't have individual folders
-    is_usa = STATE_ABBR.lower() == "usa"
-
-    if is_usa:
-        events_folder = (
-            DATA_PROCESSED_FOLDER
-            / "country:us"
-            / "congress"
-            / "sessions"
-            / session_id
-            / "events"
-        )
-    else:
-        events_folder = (
-            DATA_PROCESSED_FOLDER
-            / "country:us"
-            / f"state:{STATE_ABBR.lower()}"
-            / "sessions"
-            / session_id
-            / "events"
-        )
+    events_folder = (
+        repo_root
+        / "country:us"
+        / f"state:{state_abbr.lower()}"
+        / "sessions"
+        / session_id
+        / "events"
+    )
 
     events_folder.mkdir(parents=True, exist_ok=True)
 
