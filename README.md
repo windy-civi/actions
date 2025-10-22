@@ -183,8 +183,7 @@ Check `data_output/data_processed/orphaned_placeholders_tracking.json` to see:
 
 ```bash
 # Clone the repository
-git clone https://github.com/windy-civi/opencivicdata-blockchain-transformer.git
-cd opencivicdata-blockchain-transformer
+cd toolkit
 
 # Install dependencies
 pipenv install
@@ -224,7 +223,7 @@ Windy Civi's long-term goal is to create a **permanent, blockchain-style public 
 
 This project is part of the broader **Windy Civi** ecosystem—a civic tech initiative based in Chicago focused on open data and transparency. We welcome collaborators, contributors, and curious minds.
 
-- 🐙 [Open an Issue](https://github.com/windy-civi/opencivicdata-blockchain-transformer/issues)
+- 🐙 [Open an Issue](https://github.com/windy-civi/toolkit/issues)
 - 📬 Submit a PR
 - 🌱 Help design future civic pipelines
 - 💬 Join the conversation about civic tech

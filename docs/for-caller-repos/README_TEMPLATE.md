@@ -50,13 +50,13 @@ This approach keeps every state repository consistent, auditable, and easy to ma
    jobs:
      scrape:
        - name: Scrape data
-         uses: windy-civi/opencivicdata-blockchain-transformer/actions/scrape@main
+         uses: windy-civi/toolkit/actions/scrape@main
          with:
            state: ${{ env.STATE_CODE }}
 
      format:
        - name: Format data
-         uses: windy-civi/opencivicdata-blockchain-transformer/actions/format@main
+         uses: windy-civi/toolkit/actions/format@main
          with:
            state: ${{ env.STATE_CODE }}
    ```
@@ -65,7 +65,7 @@ This approach keeps every state repository consistent, auditable, and easy to ma
 
    ```yaml
    - name: Extract text
-     uses: windy-civi/opencivicdata-blockchain-transformer/actions/extract@main
+     uses: windy-civi/toolkit/actions/extract@main
      with:
        state: il # CHANGE THIS to your state abbreviation
    ```
@@ -229,7 +229,7 @@ The pipeline automatically tracks **orphaned bills** - bills that have vote even
 - Check for typos in bill identifiers or scraper configuration
 - Orphans automatically resolve when the bill data arrives! 🎉
 
-📖 See [orphan tracking documentation](https://github.com/windy-civi/opencivicdata-blockchain-transformer/blob/main/docs/orphan_tracking.md) for more details.
+📖 See [orphan tracking documentation](https://github.com/windy-civi/toolkit/blob/main/docs/orphan_tracking.md) for more details.
 
 ---
 
@@ -281,7 +281,7 @@ The text extraction workflow supports:
 ### Scrape Action Inputs
 
 ```yaml
-uses: windy-civi/opencivicdata-blockchain-transformer/actions/scrape@main
+uses: windy-civi/toolkit/actions/scrape@main
 with:
   state: il # State abbreviation (required)
   github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -291,7 +291,7 @@ with:
 ### Format Action Inputs
 
 ```yaml
-uses: windy-civi/opencivicdata-blockchain-transformer/actions/format@main
+uses: windy-civi/toolkit/actions/format@main
 with:
   state: il # State abbreviation (required)
   github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -300,7 +300,7 @@ with:
 ### Text Extraction Action Inputs
 
 ```yaml
-uses: windy-civi/opencivicdata-blockchain-transformer/actions/extract@main
+uses: windy-civi/toolkit/actions/extract@main
 with:
   state: il # State abbreviation (required)
   github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -383,7 +383,7 @@ pipenv run python text_extraction/main.py \
 
 ## 🔍 Known Issues
 
-See the [known_problems/](https://github.com/windy-civi/opencivicdata-blockchain-transformer/tree/main/known_problems) directory in the main repository for:
+See the [known_problems/](https://github.com/windy-civi/toolkit/tree/main/known_problems) directory in the main repository for:
 
 - State-specific scraper issues
 - Formatter validation issues
@@ -439,7 +439,7 @@ See the [known_problems/](https://github.com/windy-civi/opencivicdata-blockchain
 
 This template is part of the [Windy Civi](https://github.com/windy-civi) project. If you're onboarding a new state or improving the automation, feel free to open an issue or PR.
 
-**Main Repository**: https://github.com/windy-civi/opencivicdata-blockchain-transformer
+**Main Repository**: https://github.com/windy-civi/toolkit
 
 For discussions, join our community on Slack or GitHub Discussions.
 
@@ -460,9 +460,9 @@ For discussions, join our community on Slack or GitHub Discussions.
 
 ## 📚 Additional Documentation
 
-- **[Incremental Processing Guide](https://github.com/windy-civi/opencivicdata-blockchain-transformer/blob/main/docs/incremental_processing/)** - How incremental updates work
-- **[Orphan Tracking Guide](https://github.com/windy-civi/opencivicdata-blockchain-transformer/blob/main/docs/orphan_tracking.md)** - Understanding data quality monitoring
-- **[Main Repository README](https://github.com/windy-civi/opencivicdata-blockchain-transformer)** - Full technical documentation
+- **[Incremental Processing Guide](https://github.com/windy-civi/toolkit/blob/main/docs/incremental_processing/)** - How incremental updates work
+- **[Orphan Tracking Guide](https://github.com/windy-civi/toolkit/blob/main/docs/orphan_tracking.md)** - Understanding data quality monitoring
+- **[Main Repository README](https://github.com/windy-civi/toolkit)** - Full technical documentation
 
 ---
 
