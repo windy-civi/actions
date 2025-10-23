@@ -9,38 +9,19 @@ This directory tracks known issues with state scrapers and our formatter code.
 
 ## 🔴 Active Scraper Issues
 
-### Session Configuration Issues
-
-- [New Mexico - 2025 1st Special Session](scraper/new_mexico_session_config.md)
-- [Texas - 89(2) 2025 Session](scraper/texas_session_config.md)
-
-### HTML Structure Issues
-
-- [Illinois - XPath Selector Broken](scraper/illinois_html_structure.md)
-
-### Data Extraction Issues
-
-- [Guam - Not Extracting Dates or Actions](scraper/guam_missing_dates_actions.md)
+None documented yet. Add new issues as they're discovered.
 
 ## 🟡 Active Formatter Issues
 
-None currently - Guam issue moved to scraper category (root cause is upstream)
-
-## ✅ Working States
-
-These states are currently working correctly:
-
-- Tennessee (TN)
-- Wyoming (WY)
-- Federal/USA (congress) - mostly working (skips amendments)
+None documented yet.
 
 ## 📝 Adding New Issues
 
-1. Create a new `.md` file in the appropriate folder
-2. Use existing files as templates
-3. Include: status, error message, root cause, workaround
-4. Update this README to link to the new issue
+1. Create a new `.md` file in the appropriate folder (`scraper/` or `formatter/`)
+2. Include: status, error message, root cause, workaround/solution
+3. Update this README to link to the new issue
+4. Use clear titles: `{state}_{issue_description}.md`
 
 ---
 
-**Last Updated:** October 14, 2025
+**Last Updated:** October 23, 2025
