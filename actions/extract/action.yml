@@ -65,17 +65,17 @@ runs:
             if [ -f /tmp/text_extraction_running ]; then
               cd "${{ github.workspace }}"
 
-              # Check if there are changes
-              if ! git diff --quiet data_output/ || ! git diff --staged --quiet data_output/; then
+              # Check if there are changes in country:us/ or .windycivi/
+              if ! git diff --quiet country:us/ .windycivi/ || ! git diff --staged --quiet country:us/ .windycivi/; then
                 echo "⏰ [$(date)] Auto-committing progress to prevent data loss..."
 
-                git add data_output/
+                git add country:us/ .windycivi/
 
                 if ! git diff --staged --quiet; then
                   # Pull before committing to avoid conflicts
                   git pull --rebase origin main 2>/dev/null || {
-                    git checkout --ours data_output/
-                    git add data_output/
+                    git checkout --ours country:us/ .windycivi/
+                    git add country:us/ .windycivi/
                     git rebase --continue 2>/dev/null || true
                   }
 
