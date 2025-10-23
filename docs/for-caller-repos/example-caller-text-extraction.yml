@@ -12,9 +12,11 @@ jobs:
   extract-text:
     name: Text Extraction
     runs-on: ubuntu-latest
-    timeout-minutes: 330 # 5.5 hours (recommended for large datasets)
+    timeout-minutes: 355 # ~5.9 hours (close to GitHub's 6-hour limit, allows graceful shutdown)
     permissions:
       contents: write
+    outputs:
+      timeout-triggered: ${{ steps.extract.outputs.timeout-triggered }}
 
     steps:
       - name: Checkout state repo
@@ -23,6 +25,7 @@ jobs:
           fetch-depth: 0
 
       - name: Run text extraction action
+        id: extract
         uses: windy-civi/toolkit/actions/extract@refactor/v2-data-structure
         with:
           state: wy # ⚠️ UPDATE THIS: Change to your state code (e.g., wy, usa, il, tx)
@@ -41,4 +44,22 @@ jobs:
           echo "ℹ️  Features:"
           echo "  - Incremental processing (skips already-processed bills)"
           echo "  - Auto-saves progress every 30 minutes"
+          echo "  - Graceful shutdown with final commit on timeout"
           echo "  - Can be safely restarted if timeout occurs"
+
+  # Auto-restart job if it timed out (work incomplete)
+  restart-if-timeout:
+    name: Restart if Timed Out
+    needs: extract-text
+    runs-on: ubuntu-latest
+    if: needs.extract-text.outputs.timeout-triggered == 'true'
+    permissions:
+      actions: write
+
+    steps:
+      - name: Trigger workflow restart
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "⚠️ Previous run hit timeout. Restarting to continue extraction..."
+          gh workflow run extract-text.yml --repo ${{ github.repository }}

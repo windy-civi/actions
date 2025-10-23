@@ -13,6 +13,11 @@ inputs:
     required: false
     default: "false"
 
+outputs:
+  timeout-triggered:
+    description: "Whether the job was terminated due to timeout (true/false)"
+    value: ${{ steps.extract.outputs.timeout-triggered }}
+
 runs:
   using: "composite"
   steps:
@@ -30,6 +35,7 @@ runs:
         pipenv install --deploy
 
     - name: Extract Text from PDFs and XMLs
+      id: extract
       shell: bash
       working-directory: ${{ github.action_path }}/../..
       run: |
@@ -54,6 +60,10 @@ runs:
           echo "⚠️ Pull failed, continuing with current checkout"
         }
 
+        # Set up trap handler for graceful shutdown on timeout
+        # This catches SIGTERM from GitHub Actions timeout and commits final progress
+        trap 'echo "⚠️ Timeout signal received! Committing final progress..."; cd "${{ github.workspace }}"; git add country:us/ .windycivi/ 2>&1 || true; git commit -m "⏱️ Final auto-save before timeout - ${{ inputs.state }}" 2>&1 || true; git push origin main 2>&1 || true; echo "🏁 Final commit attempted"; touch /tmp/timeout_triggered; exit 0' SIGTERM SIGINT
+
         # Create a flag file to control the auto-commit loop
         touch /tmp/text_extraction_running
 
@@ -65,26 +75,40 @@ runs:
             if [ -f /tmp/text_extraction_running ]; then
               cd "${{ github.workspace }}"
 
-              # Check if there are changes
-              if ! git diff --quiet data_output/ || ! git diff --staged --quiet data_output/; then
+              # Check if there are changes in country:us/ or .windycivi/
+              if ! git diff --quiet country:us/ .windycivi/ 2>/dev/null || ! git diff --staged --quiet country:us/ .windycivi/ 2>/dev/null; then
                 echo "⏰ [$(date)] Auto-committing progress to prevent data loss..."
 
-                git add data_output/
+                # Try to add files - if this fails, kill the main process
+                if ! git add country:us/ .windycivi/ 2>&1; then
+                  echo "::error::❌ CRITICAL: Failed to git add files during auto-commit!"
+                  echo "::error::This means progress cannot be saved. Terminating job."
+                  # Kill the main text extraction process
+                  pkill -P $$ python || true
+                  exit 1
+                fi
 
                 if ! git diff --staged --quiet; then
                   # Pull before committing to avoid conflicts
-                  git pull --rebase origin main 2>/dev/null || {
-                    git checkout --ours data_output/
-                    git add data_output/
+                  if ! git pull --rebase origin main 2>&1; then
+                    echo "⚠️ Rebase conflict, attempting to resolve..."
+                    git checkout --ours country:us/ .windycivi/ || {
+                      echo "::error::❌ CRITICAL: Failed to resolve conflicts during auto-commit!"
+                      pkill -P $$ python || true
+                      exit 1
+                    }
+                    git add country:us/ .windycivi/
                     git rebase --continue 2>/dev/null || true
-                  }
+                  fi
 
                   git commit -m "🔄 Auto-save text extraction progress for ${{ inputs.state }} - $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
-                  # Push with retries
+                  # Push with retries - if all fail, kill the job
+                  PUSH_SUCCESS=false
                   for i in 1 2 3; do
-                    if git push origin main 2>/dev/null; then
+                    if git push origin main 2>&1; then
                       echo "✅ Progress saved (attempt $i)"
+                      PUSH_SUCCESS=true
                       break
                     else
                       echo "⚠️ Push failed (attempt $i), pulling and retrying..."
@@ -92,6 +116,13 @@ runs:
                       sleep 5
                     fi
                   done
+
+                  if [ "$PUSH_SUCCESS" = "false" ]; then
+                    echo "::error::❌ CRITICAL: Failed to push after 3 attempts during auto-commit!"
+                    echo "::error::Cannot save progress. Terminating job to prevent data loss."
+                    pkill -P $$ python || true
+                    exit 1
+                  fi
                 fi
               fi
             fi
@@ -115,6 +146,16 @@ runs:
         # Stop the auto-commit background process
         rm -f /tmp/text_extraction_running
         wait $AUTO_COMMIT_PID 2>/dev/null || true
+
+        # Check if timeout was triggered
+        if [ -f /tmp/timeout_triggered ]; then
+          echo "timeout-triggered=true" >> $GITHUB_OUTPUT
+          echo "⏱️ Job was terminated due to timeout (final commit was attempted)"
+          rm -f /tmp/timeout_triggered
+          exit 0  # Exit cleanly so workflow can detect and restart
+        else
+          echo "timeout-triggered=false" >> $GITHUB_OUTPUT
+        fi
 
         if [ $EXIT_CODE -eq 0 ]; then
           echo "✅ Text extraction complete"
