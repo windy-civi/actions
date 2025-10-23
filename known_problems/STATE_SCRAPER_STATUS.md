@@ -2,7 +2,7 @@
 
 Tracking the status of OpenStates scrapers for all 50 states, DC, and territories.
 
-**Last Updated:** October 23, 2025  
+**Last Updated:** October 23, 2025
 **OpenStates Scrapers:** https://github.com/openstates/openstates-scrapers/tree/main/scrapers
 
 ---
@@ -21,9 +21,9 @@ Tracking the status of OpenStates scrapers for all 50 states, DC, and territorie
 
 - **Total Jurisdictions:** 56 (50 states + DC + 5 territories)
 - **Working:** 0
-- **Failing:** 0
+- **Failing:** 1
 - **Testing:** 0
-- **Not Tested:** 56
+- **Not Tested:** 55
 
 ---
 
@@ -31,79 +31,79 @@ Tracking the status of OpenStates scrapers for all 50 states, DC, and territorie
 
 ### States (50)
 
-| State              | Code | Status | Last Tested | Notes |
-|--------------------|------|--------|-------------|-------|
-| Alabama            | al   | ❓     | Never       |       |
-| Alaska             | ak   | ❓     | Never       |       |
-| Arizona            | az   | ❓     | Never       |       |
-| Arkansas           | ar   | ❓     | Never       |       |
-| California         | ca   | ❓     | Never       |       |
-| Colorado           | co   | ❓     | Never       |       |
-| Connecticut        | ct   | ❓     | Never       |       |
-| Delaware           | de   | ❓     | Never       |       |
-| Florida            | fl   | ❓     | Never       |       |
-| Georgia            | ga   | ❓     | Never       |       |
-| Hawaii             | hi   | ❓     | Never       |       |
-| Idaho              | id   | ❓     | Never       |       |
-| Illinois           | il   | ❓     | Never       |       |
-| Indiana            | in   | ❓     | Never       |       |
-| Iowa               | ia   | ❓     | Never       |       |
-| Kansas             | ks   | ❓     | Never       |       |
-| Kentucky           | ky   | ❓     | Never       |       |
-| Louisiana          | la   | ❓     | Never       |       |
-| Maine              | me   | ❓     | Never       |       |
-| Maryland           | md   | ❓     | Never       |       |
-| Massachusetts      | ma   | ❓     | Never       |       |
-| Michigan           | mi   | ❓     | Never       |       |
-| Minnesota          | mn   | ❓     | Never       |       |
-| Mississippi        | ms   | ❓     | Never       |       |
-| Missouri           | mo   | ❓     | Never       |       |
-| Montana            | mt   | ❓     | Never       |       |
-| Nebraska           | ne   | ❓     | Never       |       |
-| Nevada             | nv   | ❓     | Never       |       |
-| New Hampshire      | nh   | ❓     | Never       |       |
-| New Jersey         | nj   | ❓     | Never       |       |
-| New Mexico         | nm   | ❓     | Never       |       |
-| New York           | ny   | ❓     | Never       |       |
-| North Carolina     | nc   | ❓     | Never       |       |
-| North Dakota       | nd   | ❓     | Never       |       |
-| Ohio               | oh   | ❓     | Never       |       |
-| Oklahoma           | ok   | ❓     | Never       |       |
-| Oregon             | or   | ❓     | Never       |       |
-| Pennsylvania       | pa   | ❓     | Never       |       |
-| Rhode Island       | ri   | ❓     | Never       |       |
-| South Carolina     | sc   | ❓     | Never       |       |
-| South Dakota       | sd   | ❓     | Never       |       |
-| Tennessee          | tn   | ❓     | Never       |       |
-| Texas              | tx   | ❓     | Never       |       |
-| Utah               | ut   | ❓     | Never       |       |
-| Vermont            | vt   | ❓     | Never       |       |
-| Virginia           | va   | ❓     | Never       |       |
-| Washington         | wa   | ❓     | Never       |       |
-| West Virginia      | wv   | ❓     | Never       |       |
-| Wisconsin          | wi   | ❓     | Never       |       |
-| Wyoming            | wy   | ❓     | Never       |       |
+| State          | Code | Status | Last Tested  | Notes                                                   |
+| -------------- | ---- | ------ | ------------ | ------------------------------------------------------- |
+| Alabama        | al   | ❓     | Never        |                                                         |
+| Alaska         | ak   | ❓     | Never        |                                                         |
+| Arizona        | az   | ❓     | Never        |                                                         |
+| Arkansas       | ar   | ❓     | Never        |                                                         |
+| California     | ca   | ❓     | Never        |                                                         |
+| Colorado       | co   | ❓     | Never        |                                                         |
+| Connecticut    | ct   | ❓     | Never        |                                                         |
+| Delaware       | de   | ❓     | Never        |                                                         |
+| Florida        | fl   | 🔴     | Oct 23, 2025 | House search selector broken - runs 6hrs, saves 0 bills |
+| Georgia        | ga   | ❓     | Never        |                                                         |
+| Hawaii         | hi   | ❓     | Never        |                                                         |
+| Idaho          | id   | ❓     | Never        |                                                         |
+| Illinois       | il   | ❓     | Never        |                                                         |
+| Indiana        | in   | ❓     | Never        |                                                         |
+| Iowa           | ia   | ❓     | Never        |                                                         |
+| Kansas         | ks   | ❓     | Never        |                                                         |
+| Kentucky       | ky   | ❓     | Never        |                                                         |
+| Louisiana      | la   | ❓     | Never        |                                                         |
+| Maine          | me   | ❓     | Never        |                                                         |
+| Maryland       | md   | ❓     | Never        |                                                         |
+| Massachusetts  | ma   | ❓     | Never        |                                                         |
+| Michigan       | mi   | ❓     | Never        |                                                         |
+| Minnesota      | mn   | ❓     | Never        |                                                         |
+| Mississippi    | ms   | ❓     | Never        |                                                         |
+| Missouri       | mo   | ❓     | Never        |                                                         |
+| Montana        | mt   | ❓     | Never        |                                                         |
+| Nebraska       | ne   | ❓     | Never        |                                                         |
+| Nevada         | nv   | ❓     | Never        |                                                         |
+| New Hampshire  | nh   | ❓     | Never        |                                                         |
+| New Jersey     | nj   | ❓     | Never        |                                                         |
+| New Mexico     | nm   | ❓     | Never        |                                                         |
+| New York       | ny   | ❓     | Never        |                                                         |
+| North Carolina | nc   | ❓     | Never        |                                                         |
+| North Dakota   | nd   | ❓     | Never        |                                                         |
+| Ohio           | oh   | ❓     | Never        |                                                         |
+| Oklahoma       | ok   | ❓     | Never        |                                                         |
+| Oregon         | or   | ❓     | Never        |                                                         |
+| Pennsylvania   | pa   | ❓     | Never        |                                                         |
+| Rhode Island   | ri   | ❓     | Never        |                                                         |
+| South Carolina | sc   | ❓     | Never        |                                                         |
+| South Dakota   | sd   | ❓     | Never        |                                                         |
+| Tennessee      | tn   | ❓     | Never        |                                                         |
+| Texas          | tx   | ❓     | Never        |                                                         |
+| Utah           | ut   | ❓     | Never        |                                                         |
+| Vermont        | vt   | ❓     | Never        |                                                         |
+| Virginia       | va   | ❓     | Never        |                                                         |
+| Washington     | wa   | ❓     | Never        |                                                         |
+| West Virginia  | wv   | ❓     | Never        |                                                         |
+| Wisconsin      | wi   | ❓     | Never        |                                                         |
+| Wyoming        | wy   | ❓     | Never        |                                                         |
 
 ### Federal
 
 | Jurisdiction | Code | Status | Last Tested | Notes |
-|--------------|------|--------|-------------|-------|
+| ------------ | ---- | ------ | ----------- | ----- |
 | Federal/USA  | usa  | ❓     | Never       |       |
 
 ### District of Columbia
 
 | Jurisdiction         | Code | Status | Last Tested | Notes |
-|----------------------|------|--------|-------------|-------|
+| -------------------- | ---- | ------ | ----------- | ----- |
 | District of Columbia | dc   | ❓     | Never       |       |
 
 ### Territories (5)
 
-| Territory                      | Code | Status | Last Tested | Notes |
-|--------------------------------|------|--------|-------------|-------|
-| Guam                           | gu   | ❓     | Never       |       |
-| Northern Mariana Islands       | mp   | ❓     | Never       |       |
-| Puerto Rico                    | pr   | ❓     | Never       |       |
-| U.S. Virgin Islands            | vi   | ❓     | Never       |       |
+| Territory                | Code | Status | Last Tested | Notes |
+| ------------------------ | ---- | ------ | ----------- | ----- |
+| Guam                     | gu   | ❓     | Never       |       |
+| Northern Mariana Islands | mp   | ❓     | Never       |       |
+| Puerto Rico              | pr   | ❓     | Never       |       |
+| U.S. Virgin Islands      | vi   | ❓     | Never       |       |
 
 ---
 
@@ -121,7 +121,20 @@ For each jurisdiction, verify:
 
 ## 🔴 Known Issues
 
-Document issues in `scraper/` folder as discovered. Update this table and link to detailed issue file.
+### Florida (fl) - House Search Selector Broken
+
+**Status:** 🔴 Failing
+**Tested:** October 23, 2025
+**Symptoms:**
+
+- Scraper runs for 6 hours processing bills
+- ERROR messages: `Selector Error... could not find bill in House Search`
+- **0 bills saved** (no "save bill" success messages in logs)
+- Times out after 6 hours with no output
+
+**Issue:** The `flhouse.gov` website changed HTML structure, breaking the scraper's search selectors. Senate side (`flsenate.gov`) may work, but House bills can't be extracted.
+
+For additional issue documentation, create detailed files in `scraper/` folder.
 
 ---
 
@@ -131,4 +144,3 @@ Document issues in `scraper/` folder as discovered. Update this table and link t
 - Federal (usa) and large states (CA, TX, NY, FL) will take longest
 - Some territories may have minimal legislative activity
 - Check for "save bill" messages in logs - absence = scraper broken
-
