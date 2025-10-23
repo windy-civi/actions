@@ -66,25 +66,39 @@ runs:
               cd "${{ github.workspace }}"
 
               # Check if there are changes in country:us/ or .windycivi/
-              if ! git diff --quiet country:us/ .windycivi/ || ! git diff --staged --quiet country:us/ .windycivi/; then
+              if ! git diff --quiet country:us/ .windycivi/ 2>/dev/null || ! git diff --staged --quiet country:us/ .windycivi/ 2>/dev/null; then
                 echo "⏰ [$(date)] Auto-committing progress to prevent data loss..."
 
-                git add country:us/ .windycivi/
+                # Try to add files - if this fails, kill the main process
+                if ! git add country:us/ .windycivi/ 2>&1; then
+                  echo "::error::❌ CRITICAL: Failed to git add files during auto-commit!"
+                  echo "::error::This means progress cannot be saved. Terminating job."
+                  # Kill the main text extraction process
+                  pkill -P $$ python || true
+                  exit 1
+                fi
 
                 if ! git diff --staged --quiet; then
                   # Pull before committing to avoid conflicts
-                  git pull --rebase origin main 2>/dev/null || {
-                    git checkout --ours country:us/ .windycivi/
+                  if ! git pull --rebase origin main 2>&1; then
+                    echo "⚠️ Rebase conflict, attempting to resolve..."
+                    git checkout --ours country:us/ .windycivi/ || {
+                      echo "::error::❌ CRITICAL: Failed to resolve conflicts during auto-commit!"
+                      pkill -P $$ python || true
+                      exit 1
+                    }
                     git add country:us/ .windycivi/
                     git rebase --continue 2>/dev/null || true
-                  }
+                  fi
 
                   git commit -m "🔄 Auto-save text extraction progress for ${{ inputs.state }} - $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
-                  # Push with retries
+                  # Push with retries - if all fail, kill the job
+                  PUSH_SUCCESS=false
                   for i in 1 2 3; do
-                    if git push origin main 2>/dev/null; then
+                    if git push origin main 2>&1; then
                       echo "✅ Progress saved (attempt $i)"
+                      PUSH_SUCCESS=true
                       break
                     else
                       echo "⚠️ Push failed (attempt $i), pulling and retrying..."
@@ -92,6 +106,13 @@ runs:
                       sleep 5
                     fi
                   done
+
+                  if [ "$PUSH_SUCCESS" = "false" ]; then
+                    echo "::error::❌ CRITICAL: Failed to push after 3 attempts during auto-commit!"
+                    echo "::error::Cannot save progress. Terminating job to prevent data loss."
+                    pkill -P $$ python || true
+                    exit 1
+                  fi
                 fi
               fi
             fi
