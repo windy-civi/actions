@@ -87,37 +87,37 @@ runs:
                   # Rebase doesn't work well with concurrent auto-commits from multiple jobs
                   if ! git pull --no-rebase origin main 2>&1; then
                     echo "⚠️ Merge conflict detected, resolving intelligently..."
-                    
+
                     # Find all conflicted metadata.json files
                     CONFLICTED_FILES=$(git diff --name-only --diff-filter=U | grep metadata.json || true)
-                    
+
                     # For each conflicted metadata.json: preserve our _processing object
                     for file in $CONFLICTED_FILES; do
                       echo "  Resolving conflict in: $file"
-                      
+
                       # Extract our entire _processing object
                       OUR_PROCESSING=$(git show :2:"$file" | jq -c '.metadata._processing // empty' 2>/dev/null || echo "")
-                      
+
                       # Take scraper's version (has all the bill data updates)
                       git checkout --theirs "$file" || {
                         echo "::error::❌ Failed to checkout scraper's version of $file"
                         pkill -P $$ python || true
                         exit 1
                       }
-                      
+
                       # Re-inject our _processing object if it exists
                       if [ -n "$OUR_PROCESSING" ] && [ "$OUR_PROCESSING" != "null" ] && [ "$OUR_PROCESSING" != "empty" ]; then
                         jq --argjson proc "$OUR_PROCESSING" '.metadata._processing = $proc' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
                         echo "  ✓ Preserved extraction metadata in $file"
                       fi
                     done
-                    
+
                     # Keep our files/ directories (extracted text content - always ours)
                     git checkout --ours "**/files/" 2>/dev/null || true
-                    
+
                     # Keep our .windycivi/ metadata
                     git checkout --ours .windycivi/ 2>/dev/null || true
-                    
+
                     git add -A
                     git commit --no-edit -m "🔄 Auto-merge: kept scraper data + extraction metadata + files"
                     echo "✅ Conflicts resolved intelligently"
@@ -211,33 +211,33 @@ runs:
           echo "📥 Pulling latest changes..."
           if ! git pull --no-rebase origin main 2>&1; then
             echo "⚠️ Merge conflict detected, resolving intelligently..."
-            
+
             # Find all conflicted metadata.json files
             CONFLICTED_FILES=$(git diff --name-only --diff-filter=U | grep metadata.json || true)
-            
+
             # For each conflicted metadata.json: preserve our _processing object
             for file in $CONFLICTED_FILES; do
               echo "  Resolving conflict in: $file"
-              
+
               # Extract our entire _processing object
               OUR_PROCESSING=$(git show :2:"$file" | jq -c '.metadata._processing // empty' 2>/dev/null || echo "")
-              
+
               # Take scraper's version (has all the bill data updates)
               git checkout --theirs "$file"
-              
+
               # Re-inject our _processing object if it exists
               if [ -n "$OUR_PROCESSING" ] && [ "$OUR_PROCESSING" != "null" ] && [ "$OUR_PROCESSING" != "empty" ]; then
                 jq --argjson proc "$OUR_PROCESSING" '.metadata._processing = $proc' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
                 echo "  ✓ Preserved extraction metadata in $file"
               fi
             done
-            
+
             # Keep our files/ directories (extracted text content - always ours)
             git checkout --ours "**/files/" 2>/dev/null || true
-            
+
             # Keep our .windycivi/ metadata
             git checkout --ours .windycivi/ 2>/dev/null || true
-            
+
             git add -A
             git commit --no-edit -m "🔄 Auto-merge: kept scraper data + extraction metadata + files"
             echo "✅ Conflicts resolved intelligently"

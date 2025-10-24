@@ -6,7 +6,7 @@ name: Scrape and Format Data
 
 on:
   schedule:
-    - cron: "0 2 * * *"  # Daily at 2 AM UTC (~9 PM ET, ~6 PM PT)
+    - cron: "0 2 * * *" # Daily at 2 AM UTC (~9 PM ET, ~6 PM PT)
   workflow_dispatch:
     inputs:
       use-scrape-cache:

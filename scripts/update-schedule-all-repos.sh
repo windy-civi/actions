@@ -58,25 +58,25 @@ FAIL_COUNT=0
 for repo_name in $REPOS; do
     full_repo="$ORG/$repo_name"
     state_code=$(echo "$repo_name" | sed 's/-data-pipeline//')
-    
+
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "📍 $state_code"
     echo "   Repository: $full_repo"
-    
+
     # Clone temporarily
     REPO_DIR="$TEMP_DIR/$repo_name"
     echo "   📥 Cloning..."
-    
+
     if ! gh repo clone "$full_repo" "$REPO_DIR" -- --depth 1 --quiet 2>/dev/null; then
         echo "   ❌ Failed to clone repository"
         FAIL_COUNT=$((FAIL_COUNT + 1))
         continue
     fi
-    
+
     cd "$REPO_DIR"
-    
+
     CHANGES_MADE=false
-    
+
     # Update scrape-and-format workflow schedule
     SCRAPE_WORKFLOW=".github/workflows/scrape-and-format-data.yml"
     if [ -f "$SCRAPE_WORKFLOW" ]; then
@@ -89,7 +89,7 @@ for repo_name in $REPOS; do
         rm -f "$SCRAPE_WORKFLOW.bak"
         CHANGES_MADE=true
     fi
-    
+
     # Update extract-text workflow schedule
     EXTRACT_WORKFLOW=".github/workflows/extract-text.yml"
     if [ -f "$EXTRACT_WORKFLOW" ]; then
@@ -102,12 +102,12 @@ for repo_name in $REPOS; do
         rm -f "$EXTRACT_WORKFLOW.bak"
         CHANGES_MADE=true
     fi
-    
+
     # Commit and push if there are changes
     git config user.name "github-actions[bot]"
     git config user.email "github-actions[bot]@users.noreply.github.com"
     git add .
-    
+
     if git diff --staged --quiet; then
         echo "   ℹ️  No changes needed"
         SKIP_COUNT=$((SKIP_COUNT + 1))
@@ -117,11 +117,11 @@ for repo_name in $REPOS; do
 
 - Scrape & Format: 02:00 UTC (~9 PM ET, ~6 PM PT)
   Catches full legislative day across all US time zones
-  
+
 - Text Extraction: 08:00 UTC (~3 AM ET, ~12 AM PT)
   Off-peak hours for better GitHub Actions performance
   6-hour buffer after scraping completes"
-        
+
         echo "   📤 Pushing changes..."
         if git push origin main 2>/dev/null; then
             echo "   ✅ Updated successfully"
@@ -131,11 +131,11 @@ for repo_name in $REPOS; do
             FAIL_COUNT=$((FAIL_COUNT + 1))
         fi
     fi
-    
+
     # Clean up this repo's temp clone
     cd "$TEMP_DIR"
     rm -rf "$REPO_DIR"
-    
+
     # Be nice to GitHub API
     sleep 1
 done

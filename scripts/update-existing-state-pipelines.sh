@@ -85,28 +85,28 @@ for state_entry in "${STATES[@]}"; do
     state_lower=$(echo "$state_code" | tr '[:upper:]' '[:lower:]')
     repo_name="${state_lower}-data-pipeline"
     full_repo="$ORG/$repo_name"
-    
+
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "📍 $state_name ($state_code)"
     echo "   Repository: $full_repo"
-    
+
     # Clone temporarily to update workflow files
     REPO_DIR="$TEMP_DIR/$repo_name"
     echo "   📥 Cloning..."
-    
+
     if ! gh repo clone "$full_repo" "$REPO_DIR" -- --depth 1 --quiet 2>/dev/null; then
         echo "   ❌ Failed to clone repository"
         FAIL_COUNT=$((FAIL_COUNT + 1))
         continue
     fi
-    
+
     cd "$REPO_DIR"
-    
+
     # Update text extraction workflow
     EXTRACT_WORKFLOW=".github/workflows/extract-text.yml"
     if [ -f "$EXTRACT_WORKFLOW" ]; then
         echo "   ✏️  Updating text extraction workflow state code..."
-        
+
         # Try both possible patterns (in case some were updated, some weren't)
         sed -i.bak "s/state: UPDATE_STATE_HERE  # ⚠️ UPDATE THIS.*/state: $state_lower # $state_name/" "$EXTRACT_WORKFLOW"
         sed -i.bak "s/state: wy # ⚠️ UPDATE THIS.*/state: $state_lower # $state_name/" "$EXTRACT_WORKFLOW"
@@ -114,12 +114,12 @@ for state_entry in "${STATES[@]}"; do
     else
         echo "   ⚠️  extract-text.yml not found"
     fi
-    
+
     # Commit and push if there are changes
     git config user.name "github-actions[bot]"
     git config user.email "github-actions[bot]@users.noreply.github.com"
     git add .
-    
+
     if git diff --staged --quiet; then
         echo "   ℹ️  No changes needed (already configured)"
         SKIP_COUNT=$((SKIP_COUNT + 1))
@@ -128,7 +128,7 @@ for state_entry in "${STATES[@]}"; do
         git commit -m "fix: update state code in text extraction workflow to $state_lower
 
 Configure extract-text.yml with correct state: $state_lower for $state_name"
-        
+
         echo "   📤 Pushing changes..."
         if git push origin main 2>/dev/null; then
             echo "   ✅ Updated successfully"
@@ -138,11 +138,11 @@ Configure extract-text.yml with correct state: $state_lower for $state_name"
             FAIL_COUNT=$((FAIL_COUNT + 1))
         fi
     fi
-    
+
     # Clean up this repo's temp clone
     cd "$TEMP_DIR"
     rm -rf "$REPO_DIR"
-    
+
     # Be nice to GitHub API
     sleep 1
 done
