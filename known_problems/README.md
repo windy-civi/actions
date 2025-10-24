@@ -9,7 +9,9 @@ This directory tracks known issues with state scrapers and our formatter code.
 
 ## 🔴 Active Scraper Issues
 
-None documented yet. Add new issues as they're discovered.
+### HTML Structure/Selector Issues
+
+- [Florida (fl) - House Search Selector Broken](scraper/fl.md)
 
 ## 🟡 Active Formatter Issues
 

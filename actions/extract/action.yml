@@ -13,11 +13,6 @@ inputs:
     required: false
     default: "false"
 
-outputs:
-  timeout-triggered:
-    description: "Whether the job was terminated due to timeout (true/false)"
-    value: ${{ steps.extract.outputs.timeout-triggered }}
-
 runs:
   using: "composite"
   steps:
@@ -59,10 +54,6 @@ runs:
         git pull origin main || {
           echo "⚠️ Pull failed, continuing with current checkout"
         }
-
-        # Set up trap handler for graceful shutdown on timeout
-        # This catches SIGTERM from GitHub Actions timeout and commits final progress
-        trap 'echo "⚠️ Timeout signal received! Committing final progress..."; cd "${{ github.workspace }}"; git add country:us/ .windycivi/ 2>&1 || true; git commit -m "⏱️ Final auto-save before timeout - ${{ inputs.state }}" 2>&1 || true; git push origin main 2>&1 || true; echo "🏁 Final commit attempted"; touch /tmp/timeout_triggered; exit 0' SIGTERM SIGINT
 
         # Create a flag file to control the auto-commit loop
         touch /tmp/text_extraction_running
@@ -146,16 +137,6 @@ runs:
         # Stop the auto-commit background process
         rm -f /tmp/text_extraction_running
         wait $AUTO_COMMIT_PID 2>/dev/null || true
-
-        # Check if timeout was triggered
-        if [ -f /tmp/timeout_triggered ]; then
-          echo "timeout-triggered=true" >> $GITHUB_OUTPUT
-          echo "⏱️ Job was terminated due to timeout (final commit was attempted)"
-          rm -f /tmp/timeout_triggered
-          exit 0  # Exit cleanly so workflow can detect and restart
-        else
-          echo "timeout-triggered=false" >> $GITHUB_OUTPUT
-        fi
 
         if [ $EXIT_CODE -eq 0 ]; then
           echo "✅ Text extraction complete"

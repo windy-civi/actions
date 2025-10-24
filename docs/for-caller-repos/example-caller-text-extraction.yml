@@ -12,11 +12,10 @@ jobs:
   extract-text:
     name: Text Extraction
     runs-on: ubuntu-latest
-    timeout-minutes: 355 # ~5.9 hours (close to GitHub's 6-hour limit, allows graceful shutdown)
+    timeout-minutes: 355 # ~5.9 hours (close to GitHub's 6-hour limit)
+    continue-on-error: true # Don't fail workflow on timeout - let restart job handle it
     permissions:
       contents: write
-    outputs:
-      timeout-triggered: ${{ steps.extract.outputs.timeout-triggered }}
 
     steps:
       - name: Checkout state repo
@@ -44,22 +43,43 @@ jobs:
           echo "ℹ️  Features:"
           echo "  - Incremental processing (skips already-processed bills)"
           echo "  - Auto-saves progress every 30 minutes"
-          echo "  - Graceful shutdown with final commit on timeout"
-          echo "  - Can be safely restarted if timeout occurs"
+          echo "  - Auto-restarts on timeout (continues where it left off)"
 
-  # Auto-restart job if it timed out (work incomplete)
-  restart-if-timeout:
-    name: Restart if Timed Out
+  # Auto-restart job if extraction was cancelled (timeout) or failed
+  check-and-restart:
+    name: Check Status & Restart if Needed
     needs: extract-text
     runs-on: ubuntu-latest
-    if: needs.extract-text.outputs.timeout-triggered == 'true'
+    if: needs.extract-text.result == 'cancelled' || needs.extract-text.result == 'failure'
     permissions:
       actions: write
+      contents: read
 
     steps:
+      - name: Checkout to check completion status
+        uses: actions/checkout@v4
+
+      - name: Check if more work remains
+        id: check
+        shell: bash
+        run: |
+          # Count bills that still need text extraction
+          # Bills without _processing.text_extraction_latest_update need processing
+          TOTAL_BILLS=$(find country:us/state:*/sessions/*/bills/*/metadata.json 2>/dev/null | wc -l || echo "0")
+
+          if [ "$TOTAL_BILLS" -gt 0 ]; then
+            echo "📊 Found $TOTAL_BILLS bills total"
+            echo "needs_restart=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ No bills found or extraction complete"
+            echo "needs_restart=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Trigger workflow restart
+        if: steps.check.outputs.needs_restart == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "⚠️ Previous run hit timeout. Restarting to continue extraction..."
+          echo "⚠️ Previous run was cancelled/failed. Restarting to continue extraction..."
+          echo "   (Incremental processing will skip already-completed bills)"
           gh workflow run extract-text.yml --repo ${{ github.repository }}
