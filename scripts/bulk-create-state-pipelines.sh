@@ -149,7 +149,7 @@ for state_entry in "${STATES[@]}"; do
     EXTRACT_WORKFLOW=".github/workflows/extract-text.yml"
     if [ -f "$EXTRACT_WORKFLOW" ]; then
         echo "   ✏️  Updating text extraction workflow..."
-        sed -i.bak "s/state: wy # ⚠️ UPDATE THIS/state: $state_lower # $state_name/" "$EXTRACT_WORKFLOW"
+        sed -i.bak "s/state: UPDATE_STATE_HERE  # ⚠️ UPDATE THIS/state: $state_lower # $state_name/" "$EXTRACT_WORKFLOW"
         rm -f "$EXTRACT_WORKFLOW.bak"
     fi
 
