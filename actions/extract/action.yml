@@ -80,19 +80,48 @@ runs:
                 fi
 
                 if ! git diff --staged --quiet; then
-                  # Pull before committing to avoid conflicts
-                  if ! git pull --rebase origin main 2>&1; then
-                    echo "⚠️ Rebase conflict, attempting to resolve..."
-                    git checkout --ours country:us/ .windycivi/ || {
-                      echo "::error::❌ CRITICAL: Failed to resolve conflicts during auto-commit!"
-                      pkill -P $$ python || true
-                      exit 1
-                    }
-                    git add country:us/ .windycivi/
-                    git rebase --continue 2>/dev/null || true
-                  fi
-
+                  # Commit first (before pulling) to avoid "uncommitted changes" errors
                   git commit -m "🔄 Auto-save text extraction progress for ${{ inputs.state }} - $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+                  # Now pull and handle conflicts with merge strategy (not rebase)
+                  # Rebase doesn't work well with concurrent auto-commits from multiple jobs
+                  if ! git pull --no-rebase origin main 2>&1; then
+                    echo "⚠️ Merge conflict detected, resolving intelligently..."
+                    
+                    # Find all conflicted metadata.json files
+                    CONFLICTED_FILES=$(git diff --name-only --diff-filter=U | grep metadata.json || true)
+                    
+                    # For each conflicted metadata.json: preserve our _processing object
+                    for file in $CONFLICTED_FILES; do
+                      echo "  Resolving conflict in: $file"
+                      
+                      # Extract our entire _processing object
+                      OUR_PROCESSING=$(git show :2:"$file" | jq -c '.metadata._processing // empty' 2>/dev/null || echo "")
+                      
+                      # Take scraper's version (has all the bill data updates)
+                      git checkout --theirs "$file" || {
+                        echo "::error::❌ Failed to checkout scraper's version of $file"
+                        pkill -P $$ python || true
+                        exit 1
+                      }
+                      
+                      # Re-inject our _processing object if it exists
+                      if [ -n "$OUR_PROCESSING" ] && [ "$OUR_PROCESSING" != "null" ] && [ "$OUR_PROCESSING" != "empty" ]; then
+                        jq --argjson proc "$OUR_PROCESSING" '.metadata._processing = $proc' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+                        echo "  ✓ Preserved extraction metadata in $file"
+                      fi
+                    done
+                    
+                    # Keep our files/ directories (extracted text content - always ours)
+                    git checkout --ours "**/files/" 2>/dev/null || true
+                    
+                    # Keep our .windycivi/ metadata
+                    git checkout --ours .windycivi/ 2>/dev/null || true
+                    
+                    git add -A
+                    git commit --no-edit -m "🔄 Auto-merge: kept scraper data + extraction metadata + files"
+                    echo "✅ Conflicts resolved intelligently"
+                  fi
 
                   # Push with retries - if all fail, kill the job
                   PUSH_SUCCESS=false
@@ -103,7 +132,21 @@ runs:
                       break
                     else
                       echo "⚠️ Push failed (attempt $i), pulling and retrying..."
-                      git pull --rebase origin main 2>/dev/null || true
+                      # Use merge strategy for concurrent updates
+                      if ! git pull --no-rebase origin main 2>&1; then
+                        # Resolve any conflicts intelligently
+                        CONFLICTED_FILES=$(git diff --name-only --diff-filter=U | grep metadata.json || true)
+                        for file in $CONFLICTED_FILES; do
+                          OUR_PROCESSING=$(git show :2:"$file" | jq -c '.metadata._processing // empty' 2>/dev/null || echo "")
+                          git checkout --theirs "$file" 2>/dev/null || true
+                          if [ -n "$OUR_PROCESSING" ] && [ "$OUR_PROCESSING" != "null" ] && [ "$OUR_PROCESSING" != "empty" ]; then
+                            jq --argjson proc "$OUR_PROCESSING" '.metadata._processing = $proc' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+                          fi
+                        done
+                        git checkout --ours "**/files/" .windycivi/ 2>/dev/null || true
+                        git add -A 2>/dev/null || true
+                        git commit --no-edit -m "🔄 Auto-merge: kept scraper data + extraction metadata + files" 2>/dev/null || true
+                      fi
                       sleep 5
                     fi
                   done
@@ -161,16 +204,44 @@ runs:
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
-          # Pull latest changes before committing to avoid conflicts
-          echo "📥 Pulling latest changes..."
-          git pull --rebase origin main || {
-            echo "⚠️ Rebase conflict detected, attempting to resolve..."
-            git checkout --ours country:us/ .windycivi/
-            git add country:us/ .windycivi/
-            git rebase --continue || true
-          }
-
+          # Commit first (before pulling) to avoid "uncommitted changes" errors
           git commit -m "Extract text from PDFs/XMLs for ${{ inputs.state }} - $(date)"
+
+          # Now pull and handle conflicts with merge strategy
+          echo "📥 Pulling latest changes..."
+          if ! git pull --no-rebase origin main 2>&1; then
+            echo "⚠️ Merge conflict detected, resolving intelligently..."
+            
+            # Find all conflicted metadata.json files
+            CONFLICTED_FILES=$(git diff --name-only --diff-filter=U | grep metadata.json || true)
+            
+            # For each conflicted metadata.json: preserve our _processing object
+            for file in $CONFLICTED_FILES; do
+              echo "  Resolving conflict in: $file"
+              
+              # Extract our entire _processing object
+              OUR_PROCESSING=$(git show :2:"$file" | jq -c '.metadata._processing // empty' 2>/dev/null || echo "")
+              
+              # Take scraper's version (has all the bill data updates)
+              git checkout --theirs "$file"
+              
+              # Re-inject our _processing object if it exists
+              if [ -n "$OUR_PROCESSING" ] && [ "$OUR_PROCESSING" != "null" ] && [ "$OUR_PROCESSING" != "empty" ]; then
+                jq --argjson proc "$OUR_PROCESSING" '.metadata._processing = $proc' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+                echo "  ✓ Preserved extraction metadata in $file"
+              fi
+            done
+            
+            # Keep our files/ directories (extracted text content - always ours)
+            git checkout --ours "**/files/" 2>/dev/null || true
+            
+            # Keep our .windycivi/ metadata
+            git checkout --ours .windycivi/ 2>/dev/null || true
+            
+            git add -A
+            git commit --no-edit -m "🔄 Auto-merge: kept scraper data + extraction metadata + files"
+            echo "✅ Conflicts resolved intelligently"
+          fi
 
           # Retry push up to 3 times in case of concurrent updates
           for i in 1 2 3; do
@@ -188,7 +259,21 @@ runs:
 
             if [ $i -lt 3 ]; then
               echo "⚠️ Push failed (attempt $i), pulling and retrying..."
-              git pull --rebase origin main
+              # Use merge strategy for concurrent updates
+              if ! git pull --no-rebase origin main 2>&1; then
+                # Resolve conflicts intelligently
+                CONFLICTED_FILES=$(git diff --name-only --diff-filter=U | grep metadata.json || true)
+                for file in $CONFLICTED_FILES; do
+                  OUR_PROCESSING=$(git show :2:"$file" | jq -c '.metadata._processing // empty' 2>/dev/null || echo "")
+                  git checkout --theirs "$file" 2>/dev/null || true
+                  if [ -n "$OUR_PROCESSING" ] && [ "$OUR_PROCESSING" != "null" ] && [ "$OUR_PROCESSING" != "empty" ]; then
+                    jq --argjson proc "$OUR_PROCESSING" '.metadata._processing = $proc' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+                  fi
+                done
+                git checkout --ours "**/files/" .windycivi/ 2>/dev/null || true
+                git add -A 2>/dev/null || true
+                git commit --no-edit -m "🔄 Auto-merge: kept scraper data + extraction metadata + files" 2>/dev/null || true
+              fi
               sleep 2
             else
               echo "❌ Failed to push after 3 attempts"
