@@ -98,9 +98,9 @@ for state_entry in "${STATES[@]}"; do
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "📍 $state_name ($state_code)"
     echo "   Repository: $full_repo"
-
-    # Check if repo already exists
-    if gh repo view "$full_repo" &> /dev/null; then
+    
+    # Check if repo already exists (use API to check specific org, not global search)
+    if gh api "repos/$full_repo" &> /dev/null; then
         echo "   ⚠️  Already exists - skipping"
         SKIP_COUNT=$((SKIP_COUNT + 1))
         continue
