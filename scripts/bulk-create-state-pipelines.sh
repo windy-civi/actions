@@ -88,6 +88,10 @@ SUCCESS_COUNT=0
 SKIP_COUNT=0
 FAIL_COUNT=0
 
+# Get list of existing repos in the org
+echo "📋 Fetching existing repos in $ORG..."
+EXISTING_REPOS=$(gh repo list "$ORG" --limit 200 --json name --jq '.[].name')
+
 for state_entry in "${STATES[@]}"; do
     # Parse state code and name
     IFS=':' read -r state_code state_name <<< "$state_entry"
@@ -99,8 +103,8 @@ for state_entry in "${STATES[@]}"; do
     echo "📍 $state_name ($state_code)"
     echo "   Repository: $full_repo"
 
-    # Check if repo already exists (use API to check specific org, not global search)
-    if gh api "repos/$full_repo" &> /dev/null; then
+    # Check if repo already exists in THIS org (not archived or other orgs)
+    if echo "$EXISTING_REPOS" | grep -q "^${repo_name}$"; then
         echo "   ⚠️  Already exists - skipping"
         SKIP_COUNT=$((SKIP_COUNT + 1))
         continue
