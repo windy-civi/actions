@@ -9,9 +9,13 @@ This directory tracks known issues with state scrapers and our formatter code.
 
 ## 🔴 Active Scraper Issues
 
-### HTML Structure/Selector Issues
+### Infrastructure/Network Issues
 
-- [Florida (fl) - House Search Selector Broken](scraper/fl.md)
+- [Connecticut (ct) - FTP Server Timeout](scraper/ct.md)
+
+### Docker Image Issues
+
+- [California (ca) - Missing sqlalchemy Dependency](scraper/ca.md)
 
 ## 🟡 Active Formatter Issues
 

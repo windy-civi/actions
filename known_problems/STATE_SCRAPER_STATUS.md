@@ -19,11 +19,11 @@ Tracking the status of OpenStates scrapers for all 50 states, DC, and territorie
 
 ## 📊 Summary
 
-- **Total Jurisdictions:** 56 (50 states + DC + 5 territories)
-- **Working:** 0
-- **Failing:** 1
+- **Total Jurisdictions:** 55 (50 states + DC + 4 territories + USA)
+- **Working:** 1
+- **Failing:** 2
 - **Testing:** 0
-- **Not Tested:** 55
+- **Not Tested:** 52
 
 ---
 
@@ -37,11 +37,11 @@ Tracking the status of OpenStates scrapers for all 50 states, DC, and territorie
 | Alaska         | ak   | ❓     | Never        |                                                         |
 | Arizona        | az   | ❓     | Never        |                                                         |
 | Arkansas       | ar   | ❓     | Never        |                                                         |
-| California     | ca   | ❓     | Never        |                                                         |
+| California     | ca   | 🔴     | Oct 23, 2025 | Missing sqlalchemy dependency - crashes on import       |
 | Colorado       | co   | ❓     | Never        |                                                         |
-| Connecticut    | ct   | ❓     | Never        |                                                         |
+| Connecticut    | ct   | 🔴     | Oct 23, 2025 | FTP server timeout - cannot download committee data     |
 | Delaware       | de   | ❓     | Never        |                                                         |
-| Florida        | fl   | 🔴     | Oct 23, 2025 | House search selector broken - runs 6hrs, saves 0 bills |
+| Florida        | fl   | ✅     | Oct 23, 2025 | Working! Bills being saved successfully                 |
 | Georgia        | ga   | ❓     | Never        |                                                         |
 | Hawaii         | hi   | ❓     | Never        |                                                         |
 | Idaho          | id   | ❓     | Never        |                                                         |
