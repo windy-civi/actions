@@ -110,33 +110,33 @@ runs:
           echo "📥 Pulling latest changes..."
           if ! git pull --no-rebase origin main 2>&1; then
             echo "⚠️ Merge conflict detected, resolving intelligently..."
-            
+
             # Find all conflicted metadata.json files
             CONFLICTED_FILES=$(git diff --name-only --diff-filter=U | grep metadata.json || true)
-            
+
             # For each conflicted metadata.json: preserve extraction's _processing object
             for file in $CONFLICTED_FILES; do
               echo "  Resolving conflict in: $file"
-              
+
               # Extract their (extraction's) _processing object if it exists
               THEIR_PROCESSING=$(git show :3:"$file" | jq -c '.metadata._processing // empty' 2>/dev/null || echo "")
-              
+
               # Keep our version (scraper is source of truth for bill data)
               git checkout --ours "$file"
-              
+
               # Merge in their _processing object if it exists
               if [ -n "$THEIR_PROCESSING" ] && [ "$THEIR_PROCESSING" != "null" ] && [ "$THEIR_PROCESSING" != "empty" ]; then
                 jq --argjson proc "$THEIR_PROCESSING" '.metadata._processing = $proc' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
                 echo "  ✓ Preserved extraction's _processing metadata in $file"
               fi
             done
-            
+
             # Keep extraction's files/ directories (they own extracted text content)
             git checkout --theirs "**/files/" 2>/dev/null || true
-            
+
             # Keep our .windycivi/ metadata (scraper owns pipeline metadata)
             git checkout --ours .windycivi/ 2>/dev/null || true
-            
+
             git add -A
             git commit --no-edit -m "🔄 Auto-merge: kept scraper data + extraction metadata + files"
             echo "✅ Conflicts resolved intelligently"
