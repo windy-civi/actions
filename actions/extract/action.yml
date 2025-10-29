@@ -171,19 +171,42 @@ runs:
 
         # Run text extraction using the main.py interface with incremental flag
         EXIT_CODE=0
-        pipenv run python text_extraction/main.py \
+        EXTRACTION_OUTPUT=$(pipenv run python text_extraction/main.py \
           --state "${{ inputs.state }}" \
           --data-folder "${{ github.workspace }}" \
           --output-folder "${{ github.workspace }}" \
-          --incremental || EXIT_CODE=$?
+          --incremental 2>&1) || EXIT_CODE=$?
+        
+        echo "$EXTRACTION_OUTPUT"
 
         # Stop the auto-commit background process
         rm -f /tmp/text_extraction_running
         wait $AUTO_COMMIT_PID 2>/dev/null || true
 
+        # Extract summary statistics for GitHub Actions summary
+        TOTAL_BILLS=$(echo "$EXTRACTION_OUTPUT" | grep -oP 'Total bills: \K\d+' || echo "0")
+        PROCESSED=$(echo "$EXTRACTION_OUTPUT" | grep -oP 'Processed: \K\d+' || echo "0")
+        SUCCESSFUL=$(echo "$EXTRACTION_OUTPUT" | grep -oP 'Successful: \K\d+' || echo "0")
+        ERRORS=$(echo "$EXTRACTION_OUTPUT" | grep -oP 'Errors: \K\d+' || echo "0")
+        SKIPPED=$(echo "$EXTRACTION_OUTPUT" | grep -oP 'Skipped \(already processed\): \K\d+' || echo "0")
+
+        # Create GitHub Actions summary
+        echo "## 📊 Text Extraction Summary for ${{ inputs.state }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+        echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Total Bills | $TOTAL_BILLS |" >> $GITHUB_STEP_SUMMARY
+        echo "| Processed | $PROCESSED |" >> $GITHUB_STEP_SUMMARY
+        echo "| Successful | $SUCCESSFUL |" >> $GITHUB_STEP_SUMMARY
+        echo "| Errors | $ERRORS |" >> $GITHUB_STEP_SUMMARY
+        echo "| Skipped | $SKIPPED |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
         if [ $EXIT_CODE -eq 0 ]; then
+          echo "✅ **Status:** Complete" >> $GITHUB_STEP_SUMMARY
           echo "✅ Text extraction complete"
         else
+          echo "⚠️ **Status:** Ended with exit code $EXIT_CODE" >> $GITHUB_STEP_SUMMARY
           echo "⚠️ Text extraction ended with code $EXIT_CODE (progress has been auto-saved)"
           exit $EXIT_CODE
         fi
