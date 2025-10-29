@@ -176,7 +176,7 @@ runs:
           --data-folder "${{ github.workspace }}" \
           --output-folder "${{ github.workspace }}" \
           --incremental 2>&1) || EXIT_CODE=$?
-        
+
         echo "$EXTRACTION_OUTPUT"
 
         # Stop the auto-commit background process
@@ -190,6 +190,18 @@ runs:
         ERRORS=$(echo "$EXTRACTION_OUTPUT" | grep -oP 'Errors: \K\d+' || echo "0")
         SKIPPED=$(echo "$EXTRACTION_OUTPUT" | grep -oP 'Skipped \(already processed\): \K\d+' || echo "0")
 
+        # Save stats to a file for easy display in caller workflow
+        cat > "${{ github.workspace }}/.extraction_summary.txt" << EOF
+📊 Text Extraction Summary for ${{ inputs.state }}
+════════════════════════════════════════
+
+Total bills:                 $TOTAL_BILLS
+Processed:                   $PROCESSED
+Successful:                  $SUCCESSFUL
+Errors:                      $ERRORS
+Skipped (already processed): $SKIPPED
+EOF
+
         # Create GitHub Actions summary
         echo "## 📊 Text Extraction Summary for ${{ inputs.state }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
@@ -201,7 +213,7 @@ runs:
         echo "| Errors | $ERRORS |" >> $GITHUB_STEP_SUMMARY
         echo "| Skipped | $SKIPPED |" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        
+
         if [ $EXIT_CODE -eq 0 ]; then
           echo "✅ **Status:** Complete" >> $GITHUB_STEP_SUMMARY
           echo "✅ Text extraction complete"

@@ -25,7 +25,7 @@ jobs:
 
       - name: Run text extraction action
         id: extract
-        uses: windy-civi/toolkit/actions/extract@refactor/v2-data-structure
+        uses: windy-civi/toolkit/actions/extract@main
         with:
           state: wy # ⚠️ UPDATE THIS: Change to your state code (e.g., wy, usa, il, tx)
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -35,15 +35,11 @@ jobs:
         if: always()
         shell: bash
         run: |
-          echo "📊 Text Extraction Summary"
-          echo "================================"
-          echo "✅ Check country:us/state:*/sessions/*/bills/*/files/ for extracted text files"
-          echo "📄 Look for *_extracted.txt files in the files/ directories"
-          echo ""
-          echo "ℹ️  Features:"
-          echo "  - Incremental processing (skips already-processed bills)"
-          echo "  - Auto-saves progress every 30 minutes"
-          echo "  - Auto-restarts on timeout (continues where it left off)"
+          if [ -f ".extraction_summary.txt" ]; then
+            cat .extraction_summary.txt
+          else
+            echo "⚠️  Summary file not found"
+          fi
 
   # Auto-restart job if extraction was cancelled (timeout) or failed
   check-and-restart:
