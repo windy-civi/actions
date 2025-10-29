@@ -78,7 +78,10 @@ jobs:
       - name: Trigger workflow restart
         if: steps.check.outputs.needs_restart == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Note: GITHUB_TOKEN cannot trigger workflows due to GitHub security restrictions
+          # You must create a Personal Access Token (PAT) with 'workflow' scope and add it as a secret
+          # See: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow
+          GH_TOKEN: ${{ secrets.PAT_WORKFLOW_TRIGGER }}
         run: |
           echo "⚠️ Previous run was cancelled/failed. Restarting to continue extraction..."
           echo "   (Incremental processing will skip already-completed bills)"
