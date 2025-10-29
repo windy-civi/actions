@@ -596,6 +596,10 @@ def should_skip_bill_for_text_extraction(metadata_file: Path) -> bool:
 
         # Check if any _extracted.txt files exist
         extracted_files = list(files_dir.rglob("*_extracted.txt"))
+        print(f"   🔍 DEBUG: Found {len(extracted_files)} extracted files in {files_dir}")
+        if extracted_files:
+            print(f"   🔍 DEBUG: Extracted files: {[f.name for f in extracted_files[:3]]}")  # Show first 3
+        
         if not extracted_files:
             # No extracted text files - needs processing
             print(f"   🔍 {bill_id}: No extracted text files found - processing")
