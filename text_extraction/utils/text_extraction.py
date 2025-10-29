@@ -351,7 +351,13 @@ def extract_bill_text_from_metadata(
                 )
                 filename = create_safe_filename(url, item_note, file_extension)
                 # Handle both lowercase and uppercase extensions (e.g., .html vs .HTM)
-                text_filename = filename.replace(f".{file_extension}", "_extracted.txt").replace(f".{file_extension.upper()}", "_extracted.txt")
+                if filename.endswith(f".{file_extension}"):
+                    text_filename = filename.replace(f".{file_extension}", "_extracted.txt")
+                elif filename.endswith(f".{file_extension.upper()}"):
+                    text_filename = filename.replace(f".{file_extension.upper()}", "_extracted.txt")
+                else:
+                    # Fallback: just append _extracted.txt
+                    text_filename = filename.rsplit(".", 1)[0] + "_extracted.txt"
                 print(f"   🔍 DEBUG: Original filename: {filename}")
                 print(f"   🔍 DEBUG: Text filename: {text_filename}")
 
