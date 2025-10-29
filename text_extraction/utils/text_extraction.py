@@ -568,9 +568,11 @@ def should_skip_bill_for_text_extraction(metadata_file: Path) -> bool:
             metadata = json.load(f)
 
         bill_id = metadata.get("identifier", metadata_file.parent.name)
+        print(f"   🔍 DEBUG: Checking {bill_id} for incremental processing")
 
         # Check if text has already been extracted
         processing_info = metadata.get("_processing", {})
+        print(f"   🔍 DEBUG: _processing field: {processing_info}")
         text_extraction_timestamp = processing_info.get("text_extraction_latest_update")
 
         if not text_extraction_timestamp:
