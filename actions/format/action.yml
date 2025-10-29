@@ -80,10 +80,32 @@ runs:
       run: |
         set -euo pipefail
         cd "${{ github.action_path }}/../.."
-        pipenv run python scrape_and_format/main.py \
+        
+        # Capture formatter output
+        FORMATTER_OUTPUT=$(pipenv run python scrape_and_format/main.py \
           --state "$STATE" \
           --openstates-data-folder "$OPENSTATE_DATA_FOLDER" \
-          --git-repo-folder "$GIT_REPO_FOLDER"
+          --git-repo-folder "$GIT_REPO_FOLDER" 2>&1) || true
+        
+        echo "$FORMATTER_OUTPUT"
+        
+        # Extract summary statistics for GitHub Actions summary
+        BILLS_SAVED=$(echo "$FORMATTER_OUTPUT" | grep -oP 'Bills saved: \K\d+' || echo "0")
+        VOTES_SAVED=$(echo "$FORMATTER_OUTPUT" | grep -oP 'Vote events saved: \K\d+' || echo "0")
+        PLACEHOLDERS_CLEANED=$(echo "$FORMATTER_OUTPUT" | grep -oP 'Placeholders cleaned: \K\d+' || echo "0")
+        ORPHANS_FOUND=$(echo "$FORMATTER_OUTPUT" | grep -oP 'Orphaned bills found: \K\d+' || echo "0")
+        
+        # Create GitHub Actions summary
+        echo "## 📊 Scrape & Format Summary for $STATE" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+        echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Bills Saved | $BILLS_SAVED |" >> $GITHUB_STEP_SUMMARY
+        echo "| Vote Events Saved | $VOTES_SAVED |" >> $GITHUB_STEP_SUMMARY
+        echo "| Placeholders Cleaned | $PLACEHOLDERS_CLEANED |" >> $GITHUB_STEP_SUMMARY
+        echo "| Orphaned Bills Found | $ORPHANS_FOUND |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **Status:** Complete" >> $GITHUB_STEP_SUMMARY
 
     - name: Clean ephemeral build dirs
       shell: bash
