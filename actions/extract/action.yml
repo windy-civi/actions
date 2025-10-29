@@ -193,7 +193,7 @@ runs:
         # Save stats to a file for easy display in caller workflow
         cat > "${{ github.workspace }}/.extraction_summary.txt" << EOF
 📊 Text Extraction Summary for ${{ inputs.state }}
-════════════════════════════════════════
+========================================
 
 Total bills:                 $TOTAL_BILLS
 Processed:                   $PROCESSED
