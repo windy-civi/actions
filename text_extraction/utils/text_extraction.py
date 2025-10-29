@@ -351,6 +351,8 @@ def extract_bill_text_from_metadata(
                 )
                 filename = create_safe_filename(url, item_note, file_extension)
                 text_filename = filename.replace(f".{file_extension}", "_extracted.txt")
+                print(f"   🔍 DEBUG: Original filename: {filename}")
+                print(f"   🔍 DEBUG: Text filename: {text_filename}")
 
                 # Create appropriate directory structure
                 if array_name == "documents":
@@ -377,7 +379,7 @@ def extract_bill_text_from_metadata(
 
                 # Save extracted text
                 text_file = target_dir / text_filename
-                print(f"   💾 Saving text to: {text_file}")
+                print(f"   💾 Saving extracted text to: {text_file}")
                 try:
                     with open(text_file, "w", encoding="utf-8") as f:
                         f.write(f"Title: {extracted_data.get('title', 'N/A')}\n")
@@ -596,10 +598,14 @@ def should_skip_bill_for_text_extraction(metadata_file: Path) -> bool:
 
         # Check if any _extracted.txt files exist
         extracted_files = list(files_dir.rglob("*_extracted.txt"))
-        print(f"   🔍 DEBUG: Found {len(extracted_files)} extracted files in {files_dir}")
+        print(
+            f"   🔍 DEBUG: Found {len(extracted_files)} extracted files in {files_dir}"
+        )
         if extracted_files:
-            print(f"   🔍 DEBUG: Extracted files: {[f.name for f in extracted_files[:3]]}")  # Show first 3
-        
+            print(
+                f"   🔍 DEBUG: Extracted files: {[f.name for f in extracted_files[:3]]}"
+            )  # Show first 3
+
         if not extracted_files:
             # No extracted text files - needs processing
             print(f"   🔍 {bill_id}: No extracted text files found - processing")
