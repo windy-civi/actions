@@ -191,16 +191,14 @@ runs:
         SKIPPED=$(echo "$EXTRACTION_OUTPUT" | grep -oP 'Skipped \(already processed\): \K\d+' || echo "0")
 
         # Save stats to a file for easy display in caller workflow
-        cat > "${{ github.workspace }}/.extraction_summary.txt" << EOF
-📊 Text Extraction Summary for ${{ inputs.state }}
-========================================
-
-Total bills:                 $TOTAL_BILLS
-Processed:                   $PROCESSED
-Successful:                  $SUCCESSFUL
-Errors:                      $ERRORS
-Skipped (already processed): $SKIPPED
-EOF
+        echo "📊 Text Extraction Summary for ${{ inputs.state }}" > "${{ github.workspace }}/.extraction_summary.txt"
+        echo "========================================" >> "${{ github.workspace }}/.extraction_summary.txt"
+        echo "" >> "${{ github.workspace }}/.extraction_summary.txt"
+        echo "Total bills:                 $TOTAL_BILLS" >> "${{ github.workspace }}/.extraction_summary.txt"
+        echo "Processed:                   $PROCESSED" >> "${{ github.workspace }}/.extraction_summary.txt"
+        echo "Successful:                  $SUCCESSFUL" >> "${{ github.workspace }}/.extraction_summary.txt"
+        echo "Errors:                      $ERRORS" >> "${{ github.workspace }}/.extraction_summary.txt"
+        echo "Skipped (already processed): $SKIPPED" >> "${{ github.workspace }}/.extraction_summary.txt"
 
         # Create GitHub Actions summary
         echo "## 📊 Text Extraction Summary for ${{ inputs.state }}" >> $GITHUB_STEP_SUMMARY
