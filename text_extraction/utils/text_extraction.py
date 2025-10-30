@@ -362,8 +362,6 @@ def extract_bill_text_from_metadata(
                 else:
                     # Fallback: just append _extracted.txt
                     text_filename = filename.rsplit(".", 1)[0] + "_extracted.txt"
-                print(f"   🔍 DEBUG: Original filename: {filename}")
-                print(f"   🔍 DEBUG: Text filename: {text_filename}")
 
                 # Create appropriate directory structure
                 if array_name == "documents":
@@ -581,11 +579,9 @@ def should_skip_bill_for_text_extraction(metadata_file: Path) -> bool:
             metadata = json.load(f)
 
         bill_id = metadata.get("identifier", metadata_file.parent.name)
-        print(f"   🔍 DEBUG: Checking {bill_id} for incremental processing")
 
         # Check if text has already been extracted
         processing_info = metadata.get("_processing", {})
-        print(f"   🔍 DEBUG: _processing field: {processing_info}")
         text_extraction_timestamp = processing_info.get("text_extraction_latest_update")
 
         if not text_extraction_timestamp:
@@ -609,13 +605,6 @@ def should_skip_bill_for_text_extraction(metadata_file: Path) -> bool:
 
         # Check if any _extracted.txt files exist
         extracted_files = list(files_dir.rglob("*_extracted.txt"))
-        print(
-            f"   🔍 DEBUG: Found {len(extracted_files)} extracted files in {files_dir}"
-        )
-        if extracted_files:
-            print(
-                f"   🔍 DEBUG: Extracted files: {[f.name for f in extracted_files[:3]]}"
-            )  # Show first 3
 
         if not extracted_files:
             # No extracted text files - needs processing
