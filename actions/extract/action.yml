@@ -183,12 +183,12 @@ runs:
         rm -f /tmp/text_extraction_running
         wait $AUTO_COMMIT_PID 2>/dev/null || true
 
-        # Extract summary statistics for GitHub Actions summary
-        TOTAL_BILLS=$(echo "$EXTRACTION_OUTPUT" | grep -oP 'Total bills: \K\d+' || echo "0")
-        PROCESSED=$(echo "$EXTRACTION_OUTPUT" | grep -oP 'Processed: \K\d+' || echo "0")
-        SUCCESSFUL=$(echo "$EXTRACTION_OUTPUT" | grep -oP 'Successful: \K\d+' || echo "0")
-        ERRORS=$(echo "$EXTRACTION_OUTPUT" | grep -oP 'Errors: \K\d+' || echo "0")
-        SKIPPED=$(echo "$EXTRACTION_OUTPUT" | grep -oP 'Skipped \(already processed\): \K\d+' || echo "0")
+        # Extract summary statistics for GitHub Actions summary (take last match only)
+        TOTAL_BILLS=$(echo "$EXTRACTION_OUTPUT" | grep -oP 'Total bills: \K\d+' | tail -1 || echo "0")
+        PROCESSED=$(echo "$EXTRACTION_OUTPUT" | grep -oP 'Processed: \K\d+' | tail -1 || echo "0")
+        SUCCESSFUL=$(echo "$EXTRACTION_OUTPUT" | grep -oP 'Successful: \K\d+' | tail -1 || echo "0")
+        ERRORS=$(echo "$EXTRACTION_OUTPUT" | grep -oP 'Errors: \K\d+' | tail -1 || echo "0")
+        SKIPPED=$(echo "$EXTRACTION_OUTPUT" | grep -oP 'Skipped \(already processed\): \K\d+' | tail -1 || echo "0")
 
         # Save stats to a file for easy display in caller workflow
         echo "📊 Text Extraction Summary for ${{ inputs.state }}" > "${{ github.workspace }}/.extraction_summary.txt"
@@ -201,16 +201,18 @@ runs:
         echo "Skipped (already processed): $SKIPPED" >> "${{ github.workspace }}/.extraction_summary.txt"
 
         # Create GitHub Actions summary
-        echo "## 📊 Text Extraction Summary for ${{ inputs.state }}" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
-        echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-        echo "| Total Bills | $TOTAL_BILLS |" >> $GITHUB_STEP_SUMMARY
-        echo "| Processed | $PROCESSED |" >> $GITHUB_STEP_SUMMARY
-        echo "| Successful | $SUCCESSFUL |" >> $GITHUB_STEP_SUMMARY
-        echo "| Errors | $ERRORS |" >> $GITHUB_STEP_SUMMARY
-        echo "| Skipped | $SKIPPED |" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
+        {
+          echo "## 📊 Text Extraction Summary for ${{ inputs.state }}"
+          echo ""
+          echo "| Metric | Count |"
+          echo "|--------|-------|"
+          echo "| Total Bills | $TOTAL_BILLS |"
+          echo "| **Errors** | **$ERRORS** |"
+          echo "| Processed | $PROCESSED |"
+          echo "| Successful | $SUCCESSFUL |"
+          echo "| Skipped | $SKIPPED |"
+          echo ""
+        } >> $GITHUB_STEP_SUMMARY
 
         if [ $EXIT_CODE -eq 0 ]; then
           echo "✅ **Status:** Complete" >> $GITHUB_STEP_SUMMARY
